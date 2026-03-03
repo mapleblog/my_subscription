@@ -1,9 +1,16 @@
 import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 import { SeedEncryption } from './seed-utils';
 
-const dbPath = process.env.DATABASE_URL?.replace('file:', '') || './dev.db';
-const adapter = new PrismaBetterSqlite3({ url: dbPath });
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error('DATABASE_URL must be set in .env for seeding');
+  process.exit(1);
+}
+
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
@@ -11,6 +18,7 @@ async function main() {
 
   // Clean up existing data
   try {
+    // Delete in order to avoid foreign key constraints
     await prisma.subscription.deleteMany();
     await prisma.category.deleteMany();
     await prisma.currency.deleteMany();
@@ -98,53 +106,57 @@ async function main() {
       amount: encrypt('3490'), // 34.90 MYR
       currencyCode: 'MYR',
       cycle: 'Monthly',
-      startDate: new Date(),
-      nextBillingDate: new Date(new Date().setDate(new Date().getDate() + 15)), // Random future date
-      paymentMethod: encrypt('Apple Pay'),
+      startDate: new Date('2023-11-01'),
+      nextBillingDate: new Date('2026-03-01'),
+      paymentMethod: encrypt('Maybank Credit Card'),
+      isAutoRenew: true,
       categoryId: services.id,
-      isAutoRenew: true,
-    },
-  });
-
-  await prisma.subscription.create({
-    data: {
-      name: encrypt('iCloud+'),
-      amount: encrypt('390'), // 3.90 MYR
-      currencyCode: 'MYR',
-      cycle: 'Monthly',
-      startDate: new Date(),
-      nextBillingDate: new Date(new Date().setDate(new Date().getDate() + 5)),
-      paymentMethod: encrypt('Apple Pay'),
-      categoryId: services.id,
-      isAutoRenew: true,
-    },
-  });
-
-  await prisma.subscription.create({
-    data: {
-      name: encrypt('ChatGPT Plus'),
-      amount: encrypt('2000'), // 20.00 USD
-      currencyCode: 'USD',
-      cycle: 'Monthly',
-      startDate: new Date(),
-      nextBillingDate: new Date(new Date().setDate(new Date().getDate() + 2)),
-      paymentMethod: encrypt('Credit Card'),
-      categoryId: productivity.id,
-      isAutoRenew: true,
+      isActive: true,
     },
   });
 
   await prisma.subscription.create({
     data: {
       name: encrypt('Netflix'),
-      amount: encrypt('5500'), // 55.00 MYR
+      amount: encrypt('4500'), // 45.00 MYR
       currencyCode: 'MYR',
       cycle: 'Monthly',
-      startDate: new Date(),
-      nextBillingDate: new Date(new Date().setDate(new Date().getDate() + 20)),
-      paymentMethod: encrypt('Credit Card'),
-      categoryId: entertainment.id,
+      startDate: new Date('2023-01-15'),
+      nextBillingDate: new Date('2026-03-15'),
+      paymentMethod: encrypt('Visa Debit'),
       isAutoRenew: true,
+      categoryId: entertainment.id,
+      isActive: true,
+    },
+  });
+
+  await prisma.subscription.create({
+    data: {
+      name: encrypt('Spotify Duo'),
+      amount: encrypt('2150'), // 21.50 MYR
+      currencyCode: 'MYR',
+      cycle: 'Monthly',
+      startDate: new Date('2022-05-20'),
+      nextBillingDate: new Date('2026-03-20'),
+      paymentMethod: encrypt('GrabPay'),
+      isAutoRenew: true,
+      categoryId: entertainment.id,
+      isActive: true,
+    },
+  });
+
+  await prisma.subscription.create({
+    data: {
+      name: encrypt('Notion Plus'),
+      amount: encrypt('800'), // $8.00 USD
+      currencyCode: 'USD',
+      cycle: 'Monthly',
+      startDate: new Date('2023-08-10'),
+      nextBillingDate: new Date('2026-03-10'),
+      paymentMethod: encrypt('PayPal'),
+      isAutoRenew: true,
+      categoryId: productivity.id,
+      isActive: true,
     },
   });
 
@@ -153,14 +165,10 @@ async function main() {
 
 main()
   .then(async () => {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
     await prisma.$disconnect();
   })
   .catch(async (e) => {
     console.error(e);
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
     await prisma.$disconnect();
     process.exit(1);
   });

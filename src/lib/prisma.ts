@@ -1,19 +1,14 @@
 import 'server-only';
 import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 import { EncryptionService } from '../services/encryption';
-import path from 'path';
 
 const prismaClientSingleton = () => {
-  // Use better-sqlite3 adapter for consistency with seed and performance
-  // In Next.js, we need to handle the DB path correctly
-  const dbPath = process.env.DATABASE_URL?.replace('file:', '') || 'dev.db';
-  
-  // Resolve path relative to project root if it's relative
-  // process.cwd() in Next.js is project root
-  const resolvedPath = path.isAbsolute(dbPath) ? dbPath : path.join(process.cwd(), dbPath);
-  
-  const adapter = new PrismaBetterSqlite3({ url: resolvedPath });
+  const connectionString = process.env.DATABASE_URL;
+
+  const pool = new Pool({ connectionString });
+  const adapter = new PrismaPg(pool);
   
   return new PrismaClient({ adapter }).$extends({
     query: {
@@ -97,5 +92,3 @@ const globalForPrisma = globalThis as unknown as {
 const prisma = globalForPrisma.prisma ?? prismaClientSingleton();
 
 export default prisma;
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;

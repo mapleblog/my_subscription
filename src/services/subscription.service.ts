@@ -229,9 +229,16 @@ export const SubscriptionService = {
       return await prisma.subscription.delete({
         where: { id },
       });
-    } catch {
+    } catch (error: any) {
       // Prisma P2025: Record to delete does not exist
-      throw new AppError(AppErrors.NOT_FOUND, `Subscription with ID ${id} not found`);
+      if (error?.code === 'P2025') {
+        // Idempotent delete: if not found, consider it deleted.
+        // This handles cases where the UI might be stale (e.g. after a DB reset).
+        return null;
+      }
+      // Log unexpected errors
+      console.error('Database error in deleteSubscription:', error);
+      throw error;
     }
   },
 };

@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { createSubscriptionAction, updateSubscriptionAction, deleteSubscriptionAction } from '@/actions/subscription';
 import { createSubscriptionSchema } from '@/lib/schemas';
 import { useAction } from 'next-safe-action/hooks';
+import { logger } from '@/lib/logger';
 import { X, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -98,7 +99,7 @@ export function SubscriptionDrawer({
       reset();
     },
     onError: ({ error }) => {
-      console.error('Failed to create subscription', error);
+      logger.error('Failed to create subscription', error);
     },
   });
 
@@ -108,7 +109,7 @@ export function SubscriptionDrawer({
       reset();
     },
     onError: ({ error }) => {
-      console.error('Failed to update subscription', error);
+      logger.error('Failed to update subscription', error);
     },
   });
 
@@ -118,7 +119,7 @@ export function SubscriptionDrawer({
       reset();
     },
     onError: ({ error }) => {
-      console.error('Failed to delete subscription', error);
+      logger.error('Failed to delete subscription', error);
     },
   });
 
