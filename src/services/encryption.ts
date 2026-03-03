@@ -36,7 +36,7 @@ export const EncryptionService = {
       return `${iv.toString('hex')}:${authTag}:${encrypted}`;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('EncryptionService Error:', errorMessage);
+      console.error(`EncryptionService Error: ${errorMessage}`);
       throw new Error('Failed to encrypt data');
     }
   },

@@ -5,7 +5,9 @@ import { redis } from '../lib/redis';
 const API_KEY = process.env.EXCHANGE_API_KEY;
 const DEFAULT_RATE_USD_TO_MYR = 4.75;
 const DEFAULT_RATE_USD_TO_CNY = 7.25;
-const CACHE_DURATION_SECONDS = 3600; // 1 hour
+const DEFAULT_RATE_USD_TO_SGD = 1.35;
+const DEFAULT_RATE_USD_TO_EUR = 0.93;
+const CACHE_DURATION_SECONDS = 300;
 
 interface ExchangeCache {
   rates: Record<string, number>;
@@ -18,6 +20,8 @@ let localCache: ExchangeCache = {
     USD: 1, // Base
     MYR: DEFAULT_RATE_USD_TO_MYR,
     CNY: DEFAULT_RATE_USD_TO_CNY,
+    SGD: DEFAULT_RATE_USD_TO_SGD,
+    EUR: DEFAULT_RATE_USD_TO_EUR,
   },
   timestamp: 0,
 };
@@ -50,32 +54,70 @@ export const ExchangeService = {
     }
 
     try {
-      let url = 'https://open.er-api.com/v6/latest/USD'; // Default to free open API
-      
-      if (API_KEY) {
-        url = `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/USD`;
-      }
+      // Prefer provider with API key if available
+      const apiKeyUrl = API_KEY ? `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/USD` : null;
+      // Hourly-updated public dataset (no key)
+      const jsDelivrUrl = 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json';
+      // Daily-updated public API (fallback)
+      const openErApiUrl = 'https://open.er-api.com/v6/latest/USD';
 
-      // Example API call (adjust URL based on specific provider)
-      const res = await fetch(url);
-      
-      if (!res.ok) {
-        return localCache.rates;
-      }
+      let sanitizedRates: Record<string, number> | null = null;
 
-      const data = await res.json();
-      
-      const rates = data.rates || data.conversion_rates;
-      
-      if (rates && typeof rates === 'object') {
-        const sanitizedRates: Record<string, number> = {};
-        for (const [code, value] of Object.entries(rates as Record<string, unknown>)) {
-          const numeric = typeof value === 'number' ? value : Number(value);
-          if (Number.isFinite(numeric) && numeric > 0) {
-            sanitizedRates[code] = numeric;
+      // Try API key provider
+      if (apiKeyUrl) {
+        const res = await fetch(apiKeyUrl, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          const rates = data.conversion_rates || data.rates;
+          if (rates && typeof rates === 'object') {
+            sanitizedRates = {};
+            for (const [code, value] of Object.entries(rates as Record<string, unknown>)) {
+              const numeric = typeof value === 'number' ? value : Number(value);
+              if (Number.isFinite(numeric) && numeric > 0) {
+                sanitizedRates[code.toUpperCase()] = numeric;
+              }
+            }
           }
         }
+      }
 
+      // Try jsDelivr hourly dataset if previous failed
+      if (!sanitizedRates) {
+        const res = await fetch(jsDelivrUrl, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          const usd = data.usd;
+          if (usd && typeof usd === 'object') {
+            sanitizedRates = { USD: 1 };
+            for (const [code, value] of Object.entries(usd as Record<string, unknown>)) {
+              const numeric = typeof value === 'number' ? value : Number(value);
+              if (Number.isFinite(numeric) && numeric > 0) {
+                sanitizedRates[code.toUpperCase()] = numeric;
+              }
+            }
+          }
+        }
+      }
+
+      // Fallback to open er-api if still not set
+      if (!sanitizedRates) {
+        const res = await fetch(openErApiUrl, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          const rates = data.rates;
+          if (rates && typeof rates === 'object') {
+            sanitizedRates = {};
+            for (const [code, value] of Object.entries(rates as Record<string, unknown>)) {
+              const numeric = typeof value === 'number' ? value : Number(value);
+              if (Number.isFinite(numeric) && numeric > 0) {
+                sanitizedRates[code.toUpperCase()] = numeric;
+              }
+            }
+          }
+        }
+      }
+
+      if (sanitizedRates) {
         if (!sanitizedRates.USD) {
           sanitizedRates.USD = 1;
         }
@@ -85,23 +127,25 @@ export const ExchangeService = {
         if (!sanitizedRates.CNY) {
           sanitizedRates.CNY = DEFAULT_RATE_USD_TO_CNY;
         }
-        
-        // Update Local Cache
+        if (!sanitizedRates.SGD) {
+          sanitizedRates.SGD = DEFAULT_RATE_USD_TO_SGD;
+        }
+        if (!sanitizedRates.EUR) {
+          sanitizedRates.EUR = DEFAULT_RATE_USD_TO_EUR;
+        }
+
         localCache = {
           rates: sanitizedRates,
           timestamp: now,
         };
 
-        // Update Redis Cache
         try {
           await redis.set('exchange_rates:USD', sanitizedRates, { ex: CACHE_DURATION_SECONDS });
-        } catch {
-          // Ignore redis set error
-        }
+        } catch {}
 
         return sanitizedRates;
       }
-      
+
       return localCache.rates;
     } catch (error) {
       // Safely log error to avoid serialization issues in Next.js DevTools

@@ -18,6 +18,37 @@ export function formatCurrency(cents: number, currency: string = 'MYR'): string 
   }).format(cents / 100);
 }
 
+export function formatCurrencyParts(
+  cents: number,
+  currency: string = 'MYR'
+): { symbol: string; integer: string; fraction: string; formatted: string } {
+  const locale = currency === 'USD' ? 'en-US' : 'en-MY';
+  const nf = new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    currencyDisplay: 'narrowSymbol',
+  });
+  const parts = nf.formatToParts(cents / 100);
+
+  let symbol = '';
+  let integer = '';
+  let fraction = '';
+
+  for (const p of parts) {
+    if (p.type === 'currency') symbol = p.value;
+    if (p.type === 'integer' || p.type === 'group') integer += p.value;
+    if (p.type === 'fraction') fraction = p.value;
+  }
+
+  return {
+    symbol,
+    integer,
+    fraction: fraction || '00',
+    formatted: nf.format(cents / 100),
+  };
+}
+
 export function formatRelativeDate(dateInput: Date | string): string {
   const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
   // Simple relative date formatter (Today, Tomorrow, or MMM dd)

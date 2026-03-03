@@ -40,6 +40,13 @@ async function main() {
     console.log(`475 MYR cents -> USD cents: ${myrToUsd}`);
     console.log(`Expected: 100`);
 
+    const rates = await ExchangeService.getRates();
+    console.log(`Rates Check: SGD=${rates.SGD}, EUR=${rates.EUR}`);
+    const sgdToMyr = await ExchangeService.convert(100, 'SGD', 'MYR');
+    const eurToMyr = await ExchangeService.convert(100, 'EUR', 'MYR');
+    console.log(`100 SGD cents -> MYR cents: ${sgdToMyr}`);
+    console.log(`100 EUR cents -> MYR cents: ${eurToMyr}`);
+
     // 2. Verify Subscription Creation & NextBillingDate Logic
     console.log('\n--- Testing SubscriptionService ---');
     

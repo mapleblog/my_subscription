@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,9 +9,10 @@ import { createSubscriptionAction, updateSubscriptionAction, deleteSubscriptionA
 import { createSubscriptionSchema } from '@/lib/schemas';
 import { useAction } from 'next-safe-action/hooks';
 import { logger } from '@/lib/logger';
-import { Trash2, X } from 'lucide-react';
+import { Trash2, X, RefreshCw, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useExchangeRates } from '@/hooks/use-exchange-rates';
 
 // Extend schema for form to handle string inputs before coercion
 const formSchema = createSubscriptionSchema.omit({ nextBillingDate: true }).extend({
@@ -53,6 +54,7 @@ export function SubscriptionForm({
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -62,6 +64,35 @@ export function SubscriptionForm({
       isAutoRenew: true,
     },
   });
+
+  const { rates, convert, isLoading: isLoadingRates, error: ratesError } = useExchangeRates();
+  const [convertedAmount, setConvertedAmount] = useState<string | null>(null);
+
+  const watchedAmount = watch('amount');
+  const watchedCurrency = watch('currencyCode');
+
+  useEffect(() => {
+    if (!watchedAmount || !watchedCurrency || watchedCurrency === 'MYR') {
+      setConvertedAmount(null);
+      return;
+    }
+
+    const amount = parseFloat(watchedAmount);
+    if (isNaN(amount)) {
+      setConvertedAmount(null);
+      return;
+    }
+
+    if (rates) {
+      const result = convert(amount, watchedCurrency, 'MYR');
+      if (result !== null) {
+        setConvertedAmount(result.toFixed(2));
+      } else {
+        setConvertedAmount(null);
+      }
+    }
+  }, [watchedAmount, watchedCurrency, rates, convert]);
+
 
   // Reset form when subscription changes
   useEffect(() => {
@@ -234,6 +265,30 @@ export function SubscriptionForm({
         </div>
       </div>
       {errors.amount && <p className="text-xs text-red-500 -mt-4">{errors.amount.message}</p>}
+
+      {/* Converted Amount Display */}
+      {watchedCurrency !== 'MYR' && watchedAmount && (
+        <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
+            <RefreshCw size={16} className={cn("transition-all", isLoadingRates && "animate-spin")} />
+            <span>Estimated in MYR:</span>
+          </div>
+          <div className="font-mono font-bold text-blue-800 dark:text-blue-200">
+            {isLoadingRates ? (
+              <span className="opacity-50">Converting...</span>
+            ) : ratesError ? (
+              <div className="flex items-center gap-1 text-red-500 text-xs">
+                <AlertCircle size={14} />
+                <span>Rate Unavailable</span>
+              </div>
+            ) : convertedAmount ? (
+              `RM ${convertedAmount}`
+            ) : (
+              '---'
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Cycle */}
       <div className="space-y-2">

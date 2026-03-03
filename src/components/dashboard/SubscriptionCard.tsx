@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, Variants } from 'framer-motion';
-import { formatCurrency, formatRelativeDate } from '@/lib/utils';
+import { formatCurrencyParts, formatRelativeDate } from '@/lib/utils';
 import { Calendar, Sparkles } from 'lucide-react';
 
 interface SubscriptionCardProps {
@@ -75,8 +75,16 @@ export function SubscriptionCard({
           {/* Amount */}
           <div className="text-right">
             <div className="text-2xl font-bold text-white tracking-tight drop-shadow-md leading-none">
-              {formatCurrency(amount, currency).split('.')[0]}
-              <span className="text-base font-medium opacity-80">.{formatCurrency(amount, currency).split('.')[1]}</span>
+              {(() => {
+                const parts = formatCurrencyParts(amount, currency);
+                return (
+                  <span className="inline-flex items-baseline gap-1">
+                    <span>{parts.symbol}</span>
+                    <span>{parts.integer}</span>
+                    <span className="text-base font-medium opacity-80">.{parts.fraction}</span>
+                  </span>
+                );
+              })()}
             </div>
             <div className="text-xs font-medium text-white/70 mt-0.5">
               {cycleLabel}

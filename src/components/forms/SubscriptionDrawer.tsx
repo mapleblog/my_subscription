@@ -2,7 +2,6 @@
 'use client';
 
 import { Drawer } from 'vaul';
-import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { SubscriptionForm, SubscriptionFormProps } from './SubscriptionForm';

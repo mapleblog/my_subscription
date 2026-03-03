@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useCountUp } from '@/hooks/use-count-up';
+import { formatCurrencyParts } from '@/lib/utils';
 
 interface SpendDisplayProps {
   totalAmount: number; // in cents
@@ -11,15 +12,6 @@ interface SpendDisplayProps {
 export function SpendDisplay({ totalAmount, currency = 'MYR' }: SpendDisplayProps) {
   const animatedAmount = useCountUp(totalAmount);
   
-  // Format cents to currency (e.g. 3490 -> 34.90)
-  const formatCurrency = (cents: number) => {
-    return new Intl.NumberFormat('en-MY', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 2,
-    }).format(cents / 100);
-  };
-
   return (
     <div className="relative w-full h-48 overflow-hidden rounded-3xl">
       {/* Mesh Gradient Background */}
@@ -30,8 +22,12 @@ export function SpendDisplay({ totalAmount, currency = 'MYR' }: SpendDisplayProp
         <div className="absolute -bottom-32 left-20 w-64 h-64 bg-pink-400/30 rounded-full blur-3xl animate-blob animation-delay-4000" />
       </div>
 
+      {/* Glass Panel Overlay */}
+      <div className="absolute inset-3 rounded-3xl bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-lg shadow-black/10" />
+      <div className="absolute inset-3 rounded-3xl pointer-events-none bg-gradient-to-b from-white/30 to-transparent dark:from-white/10" />
+
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center h-full">
+      <div className="relative z-20 flex flex-col items-center justify-center h-full">
         <motion.span 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -47,7 +43,16 @@ export function SpendDisplay({ totalAmount, currency = 'MYR' }: SpendDisplayProp
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", stiffness: 200, damping: 20 }}
         >
-          {formatCurrency(animatedAmount)}
+          {(() => {
+            const parts = formatCurrencyParts(animatedAmount, currency);
+            return (
+              <span className="inline-flex items-baseline gap-1">
+                <span>{parts.symbol}</span>
+                <span>{parts.integer}</span>
+                <span className="text-3xl font-semibold opacity-80">.{parts.fraction}</span>
+              </span>
+            );
+          })()}
         </motion.h1>
       </div>
     </div>

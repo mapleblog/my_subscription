@@ -19,7 +19,8 @@ async function DashboardContent() {
     ]);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('DashboardContent Error:', errorMessage);
+    // Use a single string to avoid serialization issues with multiple arguments in Next.js devtools
+    console.error(`DashboardContent Error: ${errorMessage}`);
     loadError = error instanceof Error ? error : new Error('Failed to load dashboard');
   }
 
