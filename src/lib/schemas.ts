@@ -13,13 +13,13 @@ export const createSubscriptionSchema = z.object({
 });
 
 export const updateSubscriptionSchema = createSubscriptionSchema.partial().extend({
-  id: z.string().uuid(),
+  id: z.string().cuid(),
 });
 
 export const toggleAutoRenewSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().cuid(),
 });
 
 export const deleteSubscriptionSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().cuid(),
 });

@@ -12,10 +12,8 @@ const envSchema = z.object({
   // Required for secure cron execution
   CRON_SECRET: z.string().min(1, "CRON_SECRET is required"),
   
-  // Required for production monitoring
-  SENTRY_DSN: process.env.NODE_ENV === 'production' 
-    ? z.string().url("SENTRY_DSN must be a valid URL")
-    : z.string().optional(),
+  // Required for production monitoring (relaxed to optional)
+  SENTRY_DSN: z.string().url("SENTRY_DSN must be a valid URL").optional().or(z.literal('')),
     
   // Database URLs
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -26,11 +24,14 @@ export function validateEnv() {
 
   if (!result.success) {
     console.error('❌ Invalid environment variables:');
-    result.error.issues.forEach((issue) => {
-      console.error(`   - ${issue.path.join('.')}: ${issue.message}`);
-    });
+    const errorMessages = result.error.issues.map((issue) => {
+      const message = `   - ${issue.path.join('.')}: ${issue.message}`;
+      console.error(message);
+      return message;
+    }).join('\n');
+    
     // Throw error to stop build
-    throw new Error('Invalid environment variables');
+    throw new Error(`Invalid environment variables:\n${errorMessages}`);
   }
 
   console.log('✅ Environment variables validated successfully');

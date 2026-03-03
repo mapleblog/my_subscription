@@ -35,7 +35,13 @@ export const logger = {
                   level === 'warn' ? console.warn : 
                   console.log;
 
-    logFn(JSON.stringify(entry));
+    try {
+      logFn(JSON.stringify(entry));
+    } catch (stringifyError) {
+      // Fallback if JSON.stringify fails (e.g. circular reference)
+      console.error('Logger: Failed to stringify log entry', stringifyError);
+      logFn(entry.message || 'Log entry (stringify failed)', { ...entry, error: String(entry.error) });
+    }
   },
 
   info: (action: string, message?: string, metadata?: Record<string, unknown>) => 

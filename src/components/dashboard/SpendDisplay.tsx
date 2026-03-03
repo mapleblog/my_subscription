@@ -21,7 +21,7 @@ export function SpendDisplay({ totalAmount, currency = 'MYR' }: SpendDisplayProp
   };
 
   return (
-    <div className="relative w-full h-48 overflow-hidden rounded-3xl mb-6">
+    <div className="relative w-full h-48 overflow-hidden rounded-3xl">
       {/* Mesh Gradient Background */}
       <div className="absolute inset-0 bg-white dark:bg-black">
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-pink-900/20 opacity-70 animate-pulse" />

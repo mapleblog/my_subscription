@@ -2,6 +2,7 @@ import 'server-only';
 import prisma from '../lib/prisma';
 import { ExchangeService } from './exchange';
 import { AppError, AppErrors } from '../lib/errors';
+import { logger } from '../lib/logger';
 
 export interface SubscriptionData {
   name: string;
@@ -77,7 +78,7 @@ export const SubscriptionService = {
     // Validate preferred currency
     const currency = await prisma.currency.findUnique({ where: { code: preferredCurrencyCode } });
     if (!currency) {
-      console.warn(`Preferred currency ${preferredCurrencyCode} not found, defaulting to MYR`);
+      logger.warn('getDashboardSummary', `Preferred currency ${preferredCurrencyCode} not found, defaulting to MYR`);
       preferredCurrencyCode = 'MYR';
     }
 
@@ -237,7 +238,7 @@ export const SubscriptionService = {
         return null;
       }
       // Log unexpected errors
-      console.error('Database error in deleteSubscription:', error);
+      logger.error('deleteSubscription', error);
       throw error;
     }
   },

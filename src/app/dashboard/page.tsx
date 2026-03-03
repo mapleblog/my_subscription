@@ -79,7 +79,7 @@ function DashboardSkeleton() {
 
 export default function Dashboard() {
   return (
-    <div className="min-h-screen px-6 py-8 pb-24 max-w-md mx-auto">
+    <div className="min-h-screen px-6 py-8 pb-24 md:pb-8 w-full max-w-7xl mx-auto">
       <Suspense fallback={<DashboardSkeleton />}>
         <DashboardContent />
       </Suspense>
