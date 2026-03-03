@@ -10,6 +10,7 @@ import { Plus } from 'lucide-react';
 interface Category {
   id: string;
   name: string;
+  color?: string;
 }
 
 interface Currency {
@@ -49,10 +50,9 @@ export function DashboardClient({ summary, subscriptions, categories }: Dashboar
   const [selectedSubscription, setSelectedSubscription] = useState<DashboardSubscription | null>(null);
 
   // Handle edit request from list
-  const handleEdit = (sub: any) => {
-    // sub comes from SubscriptionList which uses a compatible but slightly different interface
-    // We can safely cast it and set it
-    setSelectedSubscription(sub);
+  const handleEdit = (sub: { id: string }) => {
+    const fullSubscription = subscriptions.find((s) => s.id === sub.id) ?? null;
+    setSelectedSubscription(fullSubscription);
     setIsDrawerOpen(true);
   };
 

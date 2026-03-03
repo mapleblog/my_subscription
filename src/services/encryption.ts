@@ -35,7 +35,8 @@ export const EncryptionService = {
       // Combine IV, AuthTag, and Encrypted Content
       return `${iv.toString('hex')}:${authTag}:${encrypted}`;
     } catch (error) {
-      console.error('EncryptionService Error:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('EncryptionService Error:', errorMessage);
       throw new Error('Failed to encrypt data');
     }
   },
@@ -68,7 +69,7 @@ export const EncryptionService = {
       decrypted += decipher.final('utf8');
       
       return decrypted;
-    } catch (error) {
+    } catch {
       // Only log if it really looked like encrypted data but failed
       // console.warn('EncryptionService: Failed to decrypt data, returning original.');
       return text;

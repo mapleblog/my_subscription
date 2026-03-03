@@ -20,8 +20,8 @@ export const SeedEncryption = {
       encrypted += cipher.final('hex');
       const authTag = cipher.getAuthTag().toString('hex');
       return `${iv.toString('hex')}:${authTag}:${encrypted}`;
-    } catch (error) {
-      console.error('Encryption failed:', error);
+    } catch {
+      console.error('Encryption failed');
       return text;
     }
   },
@@ -40,7 +40,7 @@ export const SeedEncryption = {
       let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
       decrypted += decipher.final('utf8');
       return decrypted;
-    } catch (error) {
+    } catch {
       return text;
     }
   }

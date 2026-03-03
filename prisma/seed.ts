@@ -47,15 +47,23 @@ async function main() {
     },
   });
 
-  console.log('Created currencies: MYR, USD');
+  await prisma.currency.create({
+    data: {
+      code: 'CNY',
+      symbol: '¥',
+      precision: 2,
+    },
+  });
 
-  // Create Categories
+  console.log('Created currencies: MYR, USD, CNY');
+
+  // Create Categories (Vibrancy Pastel Theme)
   const productivity = await prisma.category.create({
     data: {
       name: 'Productivity',
       slug: 'productivity',
       icon: 'layout-grid',
-      color: '#007AFF', // Blue
+      color: '#74B9FF', // Vibrant Pastel Blue
     },
   });
 
@@ -64,7 +72,7 @@ async function main() {
       name: 'Entertainment',
       slug: 'entertainment',
       icon: 'play-circle',
-      color: '#AF52DE', // Purple
+      color: '#A29BFE', // Vibrant Pastel Purple
     },
   });
 
@@ -73,17 +81,17 @@ async function main() {
       name: 'Services',
       slug: 'services',
       icon: 'cloud',
-      color: '#8E8E93', // Grey
+      color: '#FF9F43', // Vibrant Pastel Orange (More visible than Grey)
     },
   });
 
-  // Health category - created but not used for initial subscriptions yet
+  // Health category
   await prisma.category.create({
     data: {
       name: 'Health',
       slug: 'health',
       icon: 'heart', 
-      color: '#34C759', // Green
+      color: '#2ED573', // Vibrant Pastel Green (More visible than Mint)
     },
   });
 

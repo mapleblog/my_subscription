@@ -9,7 +9,7 @@ import { createSubscriptionAction, updateSubscriptionAction, deleteSubscriptionA
 import { createSubscriptionSchema } from '@/lib/schemas';
 import { useAction } from 'next-safe-action/hooks';
 import { logger } from '@/lib/logger';
-import { Trash2 } from 'lucide-react';
+import { Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
@@ -26,7 +26,7 @@ type FormData = z.infer<typeof formSchema>;
 const CYCLES = ['Monthly', 'Yearly', 'Quarterly', 'Weekly'] as const;
 
 export interface SubscriptionFormProps {
-  categories?: { id: string; name: string }[];
+  categories?: { id: string; name: string; color?: string }[];
   subscription?: {
     id: string;
     name: string;
@@ -71,7 +71,9 @@ export function SubscriptionForm({
         name: subscription.name,
         amount: (subscription.amount / 100).toFixed(2),
         currencyCode: subscription.currencyCode,
-        cycle: subscription.cycle as any,
+        cycle: (CYCLES as readonly string[]).includes(subscription.cycle)
+          ? (subscription.cycle as FormData['cycle'])
+          : 'Monthly',
         startDate: format(new Date(subscription.startDate), 'yyyy-MM-dd'),
         categoryId: subscription.categoryId || '',
         isAutoRenew: subscription.isAutoRenew,
@@ -152,17 +154,29 @@ export function SubscriptionForm({
         <h2 className="font-bold text-2xl text-gray-900 dark:text-white">
           {isEditMode ? 'Edit Subscription' : 'New Subscription'}
         </h2>
-        {isEditMode && (
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={isLoading}
-            className="p-2 bg-red-50 dark:bg-red-900/10 rounded-full text-red-500 hover:text-red-700 dark:text-red-400 transition-colors"
-            title="Delete Subscription"
-          >
-            <Trash2 size={20} />
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {isEditMode && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={isLoading}
+              className="p-2 bg-red-50 dark:bg-red-900/10 rounded-full text-red-500 hover:text-red-700 dark:text-red-400 transition-colors active:scale-95"
+              title="Delete Subscription"
+            >
+              <Trash2 size={20} />
+            </button>
+          )}
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-colors active:scale-95"
+              title="Close"
+            >
+              <X size={20} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Name */}
@@ -215,6 +229,7 @@ export function SubscriptionForm({
             <option value="USD">USD</option>
             <option value="SGD">SGD</option>
             <option value="EUR">EUR</option>
+            <option value="CNY">CNY</option>
           </select>
         </div>
       </div>

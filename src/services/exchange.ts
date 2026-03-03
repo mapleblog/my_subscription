@@ -4,6 +4,7 @@ import { redis } from '../lib/redis';
 
 const API_KEY = process.env.EXCHANGE_API_KEY;
 const DEFAULT_RATE_USD_TO_MYR = 4.75;
+const DEFAULT_RATE_USD_TO_CNY = 7.25;
 const CACHE_DURATION_SECONDS = 3600; // 1 hour
 
 interface ExchangeCache {
@@ -16,6 +17,7 @@ let localCache: ExchangeCache = {
   rates: {
     USD: 1, // Base
     MYR: DEFAULT_RATE_USD_TO_MYR,
+    CNY: DEFAULT_RATE_USD_TO_CNY,
   },
   timestamp: 0,
 };
@@ -36,7 +38,7 @@ export const ExchangeService = {
       if (cachedRates) {
         return cachedRates;
       }
-    } catch (error) {
+    } catch {
       // Redis might fail or be unconfigured, fall through to API/Local
       // console.warn('Redis cache miss or error', error);
     }
@@ -55,37 +57,56 @@ export const ExchangeService = {
       }
 
       // Example API call (adjust URL based on specific provider)
-      const res = await fetch(url, { next: { revalidate: 3600 } } as RequestInit);
+      const res = await fetch(url);
       
       if (!res.ok) {
-         throw new Error(`Exchange API error: ${res.statusText}`);
+        return localCache.rates;
       }
 
       const data = await res.json();
       
       const rates = data.rates || data.conversion_rates;
       
-      if (rates) {
+      if (rates && typeof rates === 'object') {
+        const sanitizedRates: Record<string, number> = {};
+        for (const [code, value] of Object.entries(rates as Record<string, unknown>)) {
+          const numeric = typeof value === 'number' ? value : Number(value);
+          if (Number.isFinite(numeric) && numeric > 0) {
+            sanitizedRates[code] = numeric;
+          }
+        }
+
+        if (!sanitizedRates.USD) {
+          sanitizedRates.USD = 1;
+        }
+        if (!sanitizedRates.MYR) {
+          sanitizedRates.MYR = DEFAULT_RATE_USD_TO_MYR;
+        }
+        if (!sanitizedRates.CNY) {
+          sanitizedRates.CNY = DEFAULT_RATE_USD_TO_CNY;
+        }
         
         // Update Local Cache
         localCache = {
-          rates: rates,
+          rates: sanitizedRates,
           timestamp: now,
         };
 
         // Update Redis Cache
         try {
-          await redis.set('exchange_rates:USD', rates, { ex: CACHE_DURATION_SECONDS });
-        } catch (e) {
+          await redis.set('exchange_rates:USD', sanitizedRates, { ex: CACHE_DURATION_SECONDS });
+        } catch {
           // Ignore redis set error
         }
 
-        return rates;
+        return sanitizedRates;
       }
       
       return localCache.rates;
     } catch (error) {
-      console.error('Failed to fetch exchange rates', error);
+      // Safely log error to avoid serialization issues in Next.js DevTools
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Failed to fetch exchange rates:', errorMessage);
       return localCache.rates;
     }
   },
@@ -99,11 +120,14 @@ export const ExchangeService = {
    * @returns Converted amount in cents (integer)
    */
   convert: async (amount: number, fromCode: string, toCode: string = 'MYR'): Promise<number> => {
+    if (!Number.isFinite(amount)) return 0;
     if (fromCode === toCode) return amount;
     
     const rates = await ExchangeService.getRates();
-    const fromRate = rates[fromCode] || 1; 
-    const toRate = rates[toCode] || 1;
+    const fromRateRaw = rates[fromCode];
+    const toRateRaw = rates[toCode];
+    const fromRate = Number.isFinite(fromRateRaw) && fromRateRaw > 0 ? fromRateRaw : 1;
+    const toRate = Number.isFinite(toRateRaw) && toRateRaw > 0 ? toRateRaw : 1;
 
     // Formula: Target = Source / SourceRate * TargetRate
     // We use BigInt with a scaling factor of 10^8 to preserve precision

@@ -16,7 +16,8 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error('Exchange API Error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Exchange API Error:', errorMessage);
     return NextResponse.json(
       { error: 'Failed to fetch exchange rates' },
       { status: 500 }

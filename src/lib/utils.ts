@@ -6,10 +6,15 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(cents: number, currency: string = 'MYR'): string {
-  return new Intl.NumberFormat('en-MY', {
+  // Use 'en-US' locale for USD to get '$' instead of 'US$' which is typical in 'en-MY' locale
+  // For other currencies, stick to 'en-MY' or use 'narrowSymbol' if supported
+  const locale = currency === 'USD' ? 'en-US' : 'en-MY';
+  
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: currency,
     minimumFractionDigits: 2,
+    currencyDisplay: 'narrowSymbol', // Try to force narrow symbol ($ instead of US$)
   }).format(cents / 100);
 }
 

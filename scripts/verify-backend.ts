@@ -1,7 +1,9 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable prefer-rest-params */
 // Hack to fix server-only import issue in script
 const Module = require('module');
 const originalRequire = Module.prototype.require;
-// @ts-ignore
+// @ts-expect-error: Override module require for server-only package to prevent runtime errors
 Module.prototype.require = function(id) {
   if (id === 'server-only') {
     return {};

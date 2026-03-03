@@ -12,7 +12,7 @@ interface Subscription {
   cycle: string;
   nextBillingDate: Date | string;
   isUpcoming: boolean;
-  category?: { name: string } | null;
+  category?: { name: string; color?: string } | null;
 }
 
 interface SubscriptionListProps {
@@ -93,6 +93,7 @@ export function SubscriptionList({ subscriptions, isLoading, onEdit }: Subscript
           nextBillingDate={sub.nextBillingDate}
           isUpcoming={sub.isUpcoming}
           category={sub.category?.name}
+          categoryColor={sub.category?.color}
           variants={item}
           onClick={() => onEdit?.(sub)}
         />

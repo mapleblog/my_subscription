@@ -49,7 +49,7 @@ const prismaClientSingleton = () => {
           compute(subscription) {
             try {
               return EncryptionService.decrypt(subscription.name);
-            } catch (e) {
+            } catch {
               return subscription.name;
             }
           },
@@ -62,7 +62,7 @@ const prismaClientSingleton = () => {
               // Return as number (Int/Cents)
               const val = parseInt(decrypted, 10);
               return isNaN(val) ? 0 : val;
-            } catch (e) {
+            } catch {
               return 0;
             }
           },
@@ -73,7 +73,7 @@ const prismaClientSingleton = () => {
             if (!subscription.paymentMethod) return null;
             try {
               return EncryptionService.decrypt(subscription.paymentMethod);
-            } catch (e) {
+            } catch {
               return subscription.paymentMethod;
             }
           },

@@ -45,14 +45,6 @@ export function SubscriptionDrawer({
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               className="relative w-full max-w-lg bg-white dark:bg-[#1C1C1E] rounded-2xl shadow-2xl overflow-hidden"
             >
-              <div className="absolute top-4 right-4 z-10">
-                <button
-                  onClick={() => onOpenChange(false)}
-                  className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
               
               <div className="p-8 max-h-[90vh] overflow-y-auto">
                 <SubscriptionForm
@@ -78,14 +70,6 @@ export function SubscriptionDrawer({
             <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-gray-300 dark:bg-gray-700 mb-8" />
             
             <div className="max-w-md mx-auto relative">
-              <div className="absolute top-0 right-0 z-10">
-                <Drawer.Close asChild>
-                  <button className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-500 hover:text-gray-700 dark:text-gray-400">
-                    <X size={20} />
-                  </button>
-                </Drawer.Close>
-              </div>
-
               <SubscriptionForm
                 categories={categories}
                 subscription={subscription}

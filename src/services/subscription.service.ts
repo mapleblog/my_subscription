@@ -1,4 +1,5 @@
 import 'server-only';
+import { Prisma } from '@prisma/client';
 import prisma from '../lib/prisma';
 import { ExchangeService } from './exchange';
 import { AppError, AppErrors } from '../lib/errors';
@@ -90,10 +91,19 @@ export const SubscriptionService = {
     let totalMonthlyCost = 0; // in cents
 
     for (const sub of subscriptions) {
-      // 1. Convert to Preferred Currency (as integer cents)
-      // sub.amount is decrypted string, convert to number
       const amount = Number(sub.amount);
-      const convertedAmount = await ExchangeService.convert(amount, sub.currency.code, preferredCurrencyCode);
+      const safeAmount = Number.isFinite(amount) ? amount : 0;
+      let convertedAmount = safeAmount;
+      try {
+        convertedAmount = await ExchangeService.convert(safeAmount, sub.currency.code, preferredCurrencyCode);
+      } catch (error) {
+        logger.warn(
+          'getDashboardSummary',
+          'Currency conversion failed, falling back to unconverted amount',
+          { subscriptionId: sub.id, from: sub.currency.code, to: preferredCurrencyCode },
+          error
+        );
+      }
 
       // 2. Normalize to Monthly (result may be float)
       let monthlyAmount = convertedAmount;
@@ -178,14 +188,21 @@ export const SubscriptionService = {
       throw new AppError(AppErrors.NOT_FOUND, `Subscription with ID ${id} not found`);
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updateData: any = { ...data };
+    const updateData: Prisma.SubscriptionUncheckedUpdateInput = {};
+    if (data.name !== undefined) updateData.name = data.name;
     if (data.amount !== undefined) {
       if (data.amount < 0) {
         throw new AppError(AppErrors.INVALID_INPUT, 'Amount must be positive');
       }
       updateData.amount = String(data.amount);
     }
+    if (data.currencyCode !== undefined) updateData.currencyCode = data.currencyCode;
+    if (data.cycle !== undefined) updateData.cycle = data.cycle;
+    if (data.startDate !== undefined) updateData.startDate = data.startDate;
+    if (data.nextBillingDate !== undefined) updateData.nextBillingDate = data.nextBillingDate;
+    if (data.paymentMethod !== undefined) updateData.paymentMethod = data.paymentMethod;
+    if (data.categoryId !== undefined) updateData.categoryId = data.categoryId;
+    if (data.isAutoRenew !== undefined) updateData.isAutoRenew = data.isAutoRenew;
 
     if (data.currencyCode) {
       const currency = await prisma.currency.findUnique({ where: { code: data.currencyCode } });
@@ -230,9 +247,9 @@ export const SubscriptionService = {
       return await prisma.subscription.delete({
         where: { id },
       });
-    } catch (error: any) {
+    } catch (error) {
       // Prisma P2025: Record to delete does not exist
-      if (error?.code === 'P2025') {
+      if (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === 'P2025') {
         // Idempotent delete: if not found, consider it deleted.
         // This handles cases where the UI might be stale (e.g. after a DB reset).
         return null;

@@ -8,7 +8,7 @@ import { DashboardSubscription } from './DashboardClient';
 
 interface CategoryGroupListProps {
   subscriptions: DashboardSubscription[];
-  categories: { id: string; name: string }[];
+  categories: { id: string; name: string; color?: string }[];
   isLoading?: boolean;
   onEdit?: (subscription: DashboardSubscription) => void;
 }
@@ -91,7 +91,7 @@ export function CategoryGroupList({ subscriptions, categories, isLoading, onEdit
 
   // Filter out empty groups and prepare for rendering
   const groupsToRender = Object.entries(groupedSubs)
-    .filter(([_, subs]) => subs.length > 0)
+    .filter(([, subs]) => subs.length > 0)
     .map(([catId, subs]) => ({
       id: catId,
       name: categoryNames[catId],
@@ -134,6 +134,7 @@ export function CategoryGroupList({ subscriptions, categories, isLoading, onEdit
                 nextBillingDate={sub.nextBillingDate}
                 isUpcoming={sub.isUpcoming}
                 category={sub.category?.name}
+                categoryColor={sub.category?.color}
                 variants={item}
                 onClick={() => onEdit?.(sub)}
               />

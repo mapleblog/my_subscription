@@ -10,6 +10,7 @@ import { DashboardSubscription } from '@/components/dashboard/DashboardClient';
 interface Category {
   id: string;
   name: string;
+  color?: string;
 }
 
 interface SubscriptionsClientProps {
@@ -27,8 +28,9 @@ export function SubscriptionsClient({ subscriptions, categories }: Subscriptions
     sub.category?.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleEdit = (sub: any) => {
-    setSelectedSubscription(sub);
+  const handleEdit = (sub: { id: string }) => {
+    const fullSubscription = subscriptions.find((s) => s.id === sub.id) ?? null;
+    setSelectedSubscription(fullSubscription);
     setIsDrawerOpen(true);
   };
 
