@@ -1,0 +1,52 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Subscription {
+  id              String   @id @default(cuid())
+  name            String   // Encrypted
+  amount          String   // Encrypted (Stored as stringified integer cents for precision before encryption)
+  currencyCode    String
+  currency        Currency @relation(fields: [currencyCode], references: [code])
+  cycle           String   // Monthly, Yearly, Quarterly
+  startDate       DateTime
+  nextBillingDate DateTime @default(now())
+  paymentMethod   String?  // Encrypted
+  isAutoRenew     Boolean  @default(true)
+  isUpcoming      Boolean  @default(false) // Flag for upcoming payment (within 3 days)
+  categoryId      String?
+  category        Category? @relation(fields: [categoryId], references: [id])
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([nextBillingDate])
+}
+
+model Category {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  icon          String   // Lucide icon name
+  color         String   // Hex color
+  monthlyBudget Int?     // Optional budget in cents (base currency?) or just a number
+  subscriptions Subscription[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Currency {
+  code          String   @id // USD, MYR
+  symbol        String   // $, RM
+  precision     Int      @default(2)
+  subscriptions Subscription[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

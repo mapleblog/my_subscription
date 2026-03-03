@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  
+  --color-apple-gray: #F5F5F7;
+  --color-midnight-gray: #1C1C1E; /* Deep blue-tinted dark grey for Apple dark mode */
+  
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  
+  --animate-shimmer: shimmer 2s infinite linear;
+  
+  @keyframes shimmer {
+    from {
+      background-position: 0 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
+}
+
+:root {
+  --background: #F5F5F7; /* Apple Off-white */
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #1C1C1E; /* Midnight Grey */
+    --foreground: #EDEDED;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
