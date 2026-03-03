@@ -19,7 +19,6 @@ async function DashboardContent() {
     ]);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    // Use a single string to avoid serialization issues with multiple arguments in Next.js devtools
     console.error(`DashboardContent Error: ${errorMessage}`);
     loadError = error instanceof Error ? error : new Error('Failed to load dashboard');
   }
@@ -33,13 +32,11 @@ async function DashboardContent() {
     );
   }
 
-  // Serialize subscriptions strictly to avoid "Date object" warning/error and type mismatches
   const serializedSubscriptions = subscriptions.map(sub => {
-    // Ensure all fields are safe primitives
     return {
       id: sub.id,
       name: sub.name,
-      amount: Number(sub.amount), // Convert string amount to number
+      amount: Number(sub.amount),
       currencyCode: sub.currencyCode,
       cycle: sub.cycle,
       startDate: sub.startDate.toISOString(),
@@ -61,7 +58,6 @@ async function DashboardContent() {
     };
   });
   
-  // Pick only needed fields to avoid serialization issues
   const simpleCategories = categories.map(cat => ({
     id: cat.id,
     name: cat.name,

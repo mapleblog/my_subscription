@@ -5,7 +5,11 @@ import { Pool } from 'pg';
 import { EncryptionService } from '../services/encryption';
 
 const prismaClientSingleton = () => {
-  const connectionString = process.env.DATABASE_URL;
+  const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
+  if (!connectionString) {
+    // Fallback to prevent crash; real queries will fail fast with clear error
+    console.error('Prisma: DATABASE_URL/DIRECT_URL is not set. Check .env.');
+  }
 
   const pool = new Pool({ connectionString });
   const adapter = new PrismaPg(pool);

@@ -1,4 +1,3 @@
-
 import { SubscriptionService } from '@/services/subscription.service';
 import { SubscriptionsClient } from '@/components/subscriptions/SubscriptionsClient';
 import { Suspense } from 'react';
@@ -17,7 +16,6 @@ async function SubscriptionsContent() {
     ]);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    // Use a single string to avoid serialization issues with multiple arguments in Next.js devtools
     console.error(`SubscriptionsContent Error: ${errorMessage}`);
     loadError = error instanceof Error ? error : new Error('Failed to load subscriptions');
   }
@@ -31,7 +29,6 @@ async function SubscriptionsContent() {
     );
   }
 
-  // Serialize subscriptions strictly
   const serializedSubscriptions = subscriptions.map(sub => ({
     id: sub.id,
     name: sub.name,
