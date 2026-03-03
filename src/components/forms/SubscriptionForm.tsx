@@ -14,10 +14,11 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
 // Extend schema for form to handle string inputs before coercion
-const formSchema = createSubscriptionSchema.extend({
+const formSchema = createSubscriptionSchema.omit({ nextBillingDate: true }).extend({
   amount: z.string().min(1, 'Amount is required'), // User types "10.50"
   startDate: z.string().min(1, 'Date is required'), // HTML date input returns string
   categoryId: z.string().optional(), // Override to handle empty string in form
+  isAutoRenew: z.boolean(), // Explicitly required for form handling
 });
 
 type FormData = z.infer<typeof formSchema>;
