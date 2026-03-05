@@ -20,15 +20,24 @@ async function createVerificationRecord(userId: string, token: string, expires: 
 }
 const bodySchema = z.object({
   email: z.string().email().optional(),
+  resetRateLimit: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
   try {
-    const { email } = bodySchema.parse(await request.json());
+    const { email, resetRateLimit } = bodySchema.parse(await request.json());
     const c = (await cookies()).get('auth')?.value;
+    const hasUpstash = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
     let userId: string | null = null;
     if (c) {
-      userId = (await redis.get<string>(`session:${c}`)) || null;
+      if (hasUpstash) {
+        userId = (await redis.get<string>(`session:${c}`)) || null;
+      } else {
+        const session = await prisma.session.findUnique({ where: { token: c } });
+        if (session && session.expiresAt > new Date()) {
+          userId = session.userId;
+        }
+      }
     }
 
     let user = null;
@@ -45,13 +54,33 @@ export async function POST(request: Request) {
     }
 
     // Rate limit: 3 per hour per user
-    const key = `verify_resend:${user.id}`;
-    const count = await redis.incr(key);
-    if (count === 1) {
-      await redis.expire(key, 60 * 60);
-    }
-    if (count > 3) {
-      return NextResponse.json({ success: false, error: 'Rate limited' }, { status: 429 });
+    if (hasUpstash) {
+      const key = `verify_resend:${user.id}`;
+      if (resetRateLimit && process.env.NODE_ENV !== 'production') {
+        await redis.del(key);
+        logger.info('EMAIL_VERIFY_RESEND_RATE_LIMIT_RESET', 'Rate limit reset in dev', { userId: user.id });
+        return NextResponse.json({ success: true, resetRateLimit: true });
+      }
+      const count = await redis.incr(key);
+      if (count === 1) {
+        await redis.expire(key, 60 * 60);
+      }
+      if (count > 3) {
+        let retryAfterSeconds: number | null = null;
+        try {
+          const ttl = await redis.ttl(key);
+          retryAfterSeconds = typeof ttl === 'number' && ttl > 0 ? ttl : null;
+        } catch {}
+        return NextResponse.json(
+          { success: false, error: 'Rate limited', retryAfterSeconds },
+          {
+            status: 429,
+            headers: retryAfterSeconds ? { 'Retry-After': String(retryAfterSeconds) } : undefined,
+          }
+        );
+      }
+    } else {
+      logger.warn('VERIFY_RESEND_RATE_LIMIT_BYPASS', 'Upstash not configured; rate limit bypassed', { userId: user.id });
     }
 
     const vt = randomBytes(24).toString('hex');
@@ -59,18 +88,43 @@ export async function POST(request: Request) {
     await createVerificationRecord(user.id, vt, expires);
     const origin = process.env.APP_URL || 'http://localhost:3000';
     const verifyUrl = `${origin}/verify?token=${vt}`;
-    const sent = await MailService.sendEmail({
+    const result = await MailService.sendEmail({
       to: user.email,
       subject: 'Verify your Subly email',
       html: MailService.buildVerificationHtml(verifyUrl),
     });
-    await redis.incr('metrics:email_sent');
-    logger.info('EMAIL_VERIFY_RESEND', 'Verification email resent', { userId: user.id });
-    // If no provider configured, return verifyUrl so user can click directly in dev
-    if (!process.env.RESEND_API_KEY) {
-      return NextResponse.json({ success: true, verifyUrl });
+
+    const includeVerifyUrl = process.env.NODE_ENV !== 'production';
+    if (!result.success) {
+      logger.error('EMAIL_VERIFY_RESEND_SEND_FAIL', 'Email sending failed', { userId: user.id, provider: result.provider, status: result.status, error: result.error });
+      return NextResponse.json(
+        {
+          success: false,
+          error: result.error || 'Email sending failed',
+          provider: result.provider,
+          status: result.status,
+          verifyUrl: includeVerifyUrl ? verifyUrl : undefined,
+        },
+        { status: 502 }
+      );
     }
-    return NextResponse.json({ success: true });
+
+    if (hasUpstash) {
+      await redis.incr('metrics:email_sent');
+    }
+
+    logger.info('EMAIL_VERIFY_RESEND', 'Verification email resent', {
+      userId: user.id,
+      provider: result.provider,
+      id: result.provider === 'resend' ? result.id : undefined,
+    });
+
+    return NextResponse.json({
+      success: true,
+      provider: result.provider,
+      id: result.provider === 'resend' ? result.id : undefined,
+      verifyUrl: includeVerifyUrl ? verifyUrl : undefined,
+    });
   } catch (error) {
     logger.error('EMAIL_VERIFY_RESEND_ERROR', error);
     const message = error instanceof Error ? error.message : 'Unknown error';

@@ -7,6 +7,15 @@ function NoticeClient() {
   const [message, setMessage] = React.useState<string>('Please verify your email to continue.');
   const [verifyUrl, setVerifyUrl] = React.useState<string | null>(null);
 
+  function formatRetryAfter(seconds: unknown) {
+    const s = typeof seconds === 'number' ? seconds : Number(seconds);
+    if (!Number.isFinite(s) || s <= 0) return null;
+    const m = Math.floor(s / 60);
+    const r = Math.floor(s % 60);
+    if (m <= 0) return `${r}s`;
+    return `${m}m ${r}s`;
+  }
+
   const resend = async () => {
     setSending(true);
     try {
@@ -17,12 +26,40 @@ function NoticeClient() {
       });
       const json = await res.json();
       if (json.success) {
-        setMessage('Verification email sent. Please check your inbox.');
-        if (json.verifyUrl) {
-          setVerifyUrl(json.verifyUrl);
-        }
+        const provider = typeof json.provider === 'string' ? json.provider : 'unknown';
+        const id = typeof json.id === 'string' ? json.id : null;
+        setMessage(id ? `Verification email sent via ${provider}. id: ${id}` : `Verification email sent via ${provider}. Please check your inbox.`);
       } else {
-        setMessage(json.error || 'Failed to send verification email.');
+        const retry = formatRetryAfter(json.retryAfterSeconds);
+        if (json.error === 'Rate limited' && retry) {
+          setMessage(`Rate limited. Try again in ${retry}.`);
+        } else {
+          setMessage(json.error || 'Failed to send verification email.');
+        }
+      }
+      if (json.verifyUrl) {
+        setVerifyUrl(json.verifyUrl);
+      }
+    } catch {
+      setMessage('Network error. Please try again later.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const resetRateLimit = async () => {
+    setSending(true);
+    try {
+      const res = await fetch('/api/auth/verify/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resetRateLimit: true }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setMessage('Rate limit reset (dev). You can resend now.');
+      } else {
+        setMessage(json.error || 'Failed to reset rate limit.');
       }
     } catch {
       setMessage('Network error. Please try again later.');
@@ -43,6 +80,17 @@ function NoticeClient() {
         >
           {sending ? 'Sending…' : 'Resend Verification Email'}
         </button>
+        {process.env.NODE_ENV !== 'production' && (
+          <div className="mt-3">
+            <button
+              onClick={resetRateLimit}
+              disabled={sending}
+              className="text-xs text-gray-600 dark:text-gray-300 underline disabled:opacity-50"
+            >
+              Reset rate limit (dev)
+            </button>
+          </div>
+        )}
         {verifyUrl && (
           <div className="mt-4">
             <a href={verifyUrl} className="inline-block bg-green-600 hover:bg-green-700 text-white rounded-xl px-4 py-2">

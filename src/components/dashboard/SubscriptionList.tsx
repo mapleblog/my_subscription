@@ -23,12 +23,7 @@ interface SubscriptionListProps {
 
 const container = {
   hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1
-    }
-  }
+  show: { opacity: 1 },
 };
 
 const item = {
@@ -77,9 +72,11 @@ export function SubscriptionList({ subscriptions, isLoading, onEdit }: Subscript
 
   return (
     <motion.div
+      layout="position"
       variants={container}
-      initial="hidden"
+      initial={false}
       animate="show"
+      transition={{ type: 'spring', stiffness: 500, damping: 40, mass: 0.8 }}
       className="space-y-4 pb-24 md:pb-0 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-6"
     >
       {subscriptions.map((sub) => (

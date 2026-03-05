@@ -1,6 +1,7 @@
 'use client';
 
 import { motion, Variants } from 'framer-motion';
+import React from 'react';
 import { formatCurrencyParts, formatRelativeDate } from '@/lib/utils';
 import { Calendar, Sparkles } from 'lucide-react';
 
@@ -19,7 +20,8 @@ interface SubscriptionCardProps {
   onClick?: () => void;
 }
 
-export function SubscriptionCard({
+function SubscriptionCardBase({
+  id,
   name,
   amount,
   currency,
@@ -45,14 +47,20 @@ export function SubscriptionCard({
 
   return (
     <motion.div
-      layoutId={`card-${name}`} 
+      layout="position"
+      layoutId={`card-${id}`}
       onClick={onClick}
       variants={variants}
       whileTap={{ scale: 0.98 }}
       whileHover={{ y: -4, transition: { duration: 0.2 } }}
-      initial={variants ? undefined : { opacity: 0, y: 20 }}
+      initial={false}
       animate={variants ? undefined : { opacity: 1, y: 0 }}
-      transition={variants ? undefined : { type: 'spring', stiffness: 300, damping: 20 }}
+      transition={{
+        type: 'spring',
+        stiffness: 500,
+        damping: 40,
+        mass: 0.8,
+      }}
       className="relative w-full group cursor-pointer"
     >
       {/* Wallet Pass Card */}
@@ -128,3 +136,5 @@ export function SubscriptionCard({
     </motion.div>
   );
 }
+
+export const SubscriptionCard = React.memo(SubscriptionCardBase);

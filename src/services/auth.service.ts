@@ -39,6 +39,24 @@ export const AuthService = {
     if (existing) throw new Error('Email already registered');
     const passwordHash = hashPassword(password);
     const user = await prisma.user.create({ data: { email, passwordHash } });
+    const vt = randomBytes(24).toString('hex');
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await prisma.emailVerification.create({
+      data: { userId: user.id, token: vt, expiresAt: expires },
+    });
+    const origin = process.env.APP_URL || 'http://localhost:3000';
+    const verifyUrl = `${origin}/verify?token=${vt}`;
+    const mailResult = await MailService.sendEmail({
+      to: email,
+      subject: 'Verify your Subly email',
+      html: MailService.buildVerificationHtml(verifyUrl),
+    });
+    if (!mailResult.success) {
+      throw new Error(mailResult.error || 'Email sending failed');
+    }
+    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+      await redis.incr('metrics:email_sent');
+    }
     const token = await createSession(user.id);
     return { user, token };
   },
@@ -75,30 +93,31 @@ export const AuthService = {
 
         const passwordHash = hashPassword(password);
         const user = await tx.user.create({ data: { email, passwordHash } });
-        try {
-          const token = await createSession(user.id);
-          // Create email verification token
-          const vt = randomBytes(24).toString('hex');
-          const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
-          await tx.emailVerification.create({
-            data: { userId: user.id, token: vt, expiresAt: expires },
-          });
-          // Send email
-          const origin = process.env.APP_URL || 'http://localhost:3000';
-          const verifyUrl = `${origin}/verify?token=${vt}`;
-          await MailService.sendEmail({
-            to: email,
-            subject: 'Verify your Subly email',
-            html: MailService.buildVerificationHtml(verifyUrl),
-          });
-          await redis.incr('metrics:email_sent');
-          logger.info('AUTH_AUTO_REGISTER_SUCCESS', `User ${email} auto-registered`);
-          return { user, token, created: true };
-        } catch (sessionError) {
-          logger.error('AUTH_SESSION_CREATE_FAIL', sessionError, { email });
-          // Throw to rollback user creation
-          throw new Error('Session creation failed');
+        const token = await createSession(user.id);
+
+        const vt = randomBytes(24).toString('hex');
+        const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        await tx.emailVerification.create({
+          data: { userId: user.id, token: vt, expiresAt: expires },
+        });
+
+        const origin = process.env.APP_URL || 'http://localhost:3000';
+        const verifyUrl = `${origin}/verify?token=${vt}`;
+        const mailResult = await MailService.sendEmail({
+          to: email,
+          subject: 'Verify your Subly email',
+          html: MailService.buildVerificationHtml(verifyUrl),
+        });
+        if (!mailResult.success) {
+          throw new Error(mailResult.error || 'Email sending failed');
         }
+
+        if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+          await redis.incr('metrics:email_sent');
+        }
+
+        logger.info('AUTH_AUTO_REGISTER_SUCCESS', `User ${email} auto-registered`);
+        return { user, token, created: true };
       }, { maxWait: 5000, timeout: 10000 });
 
       return result;

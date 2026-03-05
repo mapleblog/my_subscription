@@ -33,11 +33,8 @@ export async function GET(request: Request) {
 
     // Transactional updates; raw fallback if needed
     // Detect presence of model mappers defensively
-    const hasModelAPI =
-      // @ts-ignore
-      !!(prisma as any).emailVerification &&
-      // @ts-ignore
-      !!(prisma as any).user;
+    const prismaModels = prisma as unknown as Record<string, unknown>;
+    const hasModelAPI = Boolean(prismaModels.emailVerification) && Boolean(prismaModels.user);
     if (hasModelAPI) {
       await prisma.$transaction(async (tx) => {
         await tx.user.update({ where: { id: record.userId }, data: { isVerified: true } });

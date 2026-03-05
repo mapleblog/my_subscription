@@ -1,5 +1,6 @@
 import 'server-only';
 import { logger } from '@/lib/logger';
+import { Resend } from 'resend';
 
 type EmailPayload = {
   to: string;
@@ -7,35 +8,65 @@ type EmailPayload = {
   html: string;
 };
 
+type SendEmailResult =
+  | { success: true; provider: 'resend'; id: string }
+  | { success: true; provider: 'log' }
+  | { success: false; provider: 'resend'; status?: number; error: string };
+
+const resendClient = (() => {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return null;
+  return new Resend(apiKey);
+})();
+
 export const MailService = {
   async sendEmail({ to, subject, html }: EmailPayload) {
-    const apiKey = process.env.RESEND_API_KEY;
-    const from = process.env.MAIL_FROM || 'no-reply@subly.app';
-    if (apiKey) {
+    const envFrom = process.env.MAIL_FROM;
+    const from =
+      envFrom ||
+      (process.env.NODE_ENV !== 'production' ? 'onboarding@resend.dev' : null);
+    if (resendClient) {
+      if (!from) {
+        return {
+          success: false,
+          provider: 'resend',
+          error: 'MAIL_FROM is required in production and must be a verified Resend domain',
+        } satisfies SendEmailResult;
+      }
       try {
-        const res = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ from, to, subject, html }),
+        const { data, error } = await resendClient.emails.send({
+          from,
+          to,
+          subject,
+          html,
         });
-        const json = await res.json();
-        if (!res.ok) {
-          logger.error('MAIL_SEND_ERROR', json);
-          return false;
+        if (error) {
+          const err = error as unknown as { message?: string; name?: string; statusCode?: number };
+          logger.error('MAIL_SEND_ERROR', 'Resend rejected request', {
+            status: err.statusCode,
+            to,
+            subject,
+            error: err,
+          });
+          return {
+            success: false,
+            provider: 'resend',
+            status: err.statusCode,
+            error: err.message || err.name || 'Resend rejected request',
+          } satisfies SendEmailResult;
         }
-        logger.info('MAIL_SENT', 'Email sent via Resend', { to, subject });
-        return true;
+        const id = (data as unknown as { id?: string } | null)?.id || 'unknown';
+        logger.info('MAIL_SENT', 'Email sent via Resend', { to, subject, id });
+        return { success: true, provider: 'resend', id } satisfies SendEmailResult;
       } catch (error) {
-        logger.error('MAIL_RESEND_FAILURE', error, { to });
-        return false;
+        logger.error('MAIL_RESEND_FAILURE', error, { to, subject });
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return { success: false, provider: 'resend', error: message } satisfies SendEmailResult;
       }
     }
     logger.info('MAIL_FAKE_SEND', 'No provider configured; logging email', { to, subject });
     logger.debug('MAIL_HTML', html ? 'HTML length=' + html.length : 'no html');
-    return true;
+    return { success: true, provider: 'log' } satisfies SendEmailResult;
   },
   buildVerificationHtml(verifyUrl: string) {
     return `

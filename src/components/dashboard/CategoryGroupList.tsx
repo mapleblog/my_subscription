@@ -2,6 +2,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useMemo } from 'react';
 import { SubscriptionCard } from './SubscriptionCard';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { DashboardSubscription } from './DashboardClient';
@@ -15,12 +16,7 @@ interface CategoryGroupListProps {
 
 const container = {
   hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1
-    }
-  }
+  show: { opacity: 1 },
 };
 
 const item = {
@@ -29,6 +25,32 @@ const item = {
 };
 
 export function CategoryGroupList({ subscriptions, categories, isLoading, onEdit }: CategoryGroupListProps) {
+  const groupsToRender = useMemo(() => {
+    const groupedSubs: Record<string, DashboardSubscription[]> = {};
+    const categoryNames: Record<string, string> = {};
+    categories.forEach(cat => {
+      groupedSubs[cat.id] = [];
+      categoryNames[cat.id] = cat.name;
+    });
+    groupedSubs['uncategorized'] = [];
+    categoryNames['uncategorized'] = 'Uncategorized';
+    subscriptions.forEach(sub => {
+      if (sub.categoryId && groupedSubs[sub.categoryId]) {
+        groupedSubs[sub.categoryId].push(sub);
+      } else {
+        groupedSubs['uncategorized'].push(sub);
+      }
+    });
+    return Object.entries(groupedSubs)
+      .filter(([, subs]) => subs.length > 0)
+      .map(([catId, subs]) => ({
+        id: catId,
+        name: categoryNames[catId],
+        subscriptions: subs,
+        totalAmount: subs.reduce((sum, sub) => sum + sub.amount, 0),
+        currencyCode: subs[0]?.currencyCode || 'MYR',
+      }));
+  }, [subscriptions, categories]);
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -67,38 +89,6 @@ export function CategoryGroupList({ subscriptions, categories, isLoading, onEdit
     );
   }
 
-  // Group subscriptions by category
-  const groupedSubs: Record<string, DashboardSubscription[]> = {};
-  const categoryNames: Record<string, string> = {};
-
-  // Initialize groups for known categories
-  categories.forEach(cat => {
-    groupedSubs[cat.id] = [];
-    categoryNames[cat.id] = cat.name;
-  });
-  
-  // Special group for uncategorized
-  groupedSubs['uncategorized'] = [];
-  categoryNames['uncategorized'] = 'Uncategorized';
-
-  subscriptions.forEach(sub => {
-    if (sub.categoryId && groupedSubs[sub.categoryId]) {
-      groupedSubs[sub.categoryId].push(sub);
-    } else {
-      groupedSubs['uncategorized'].push(sub);
-    }
-  });
-
-  // Filter out empty groups and prepare for rendering
-  const groupsToRender = Object.entries(groupedSubs)
-    .filter(([, subs]) => subs.length > 0)
-    .map(([catId, subs]) => ({
-      id: catId,
-      name: categoryNames[catId],
-      subscriptions: subs,
-      totalAmount: subs.reduce((sum, sub) => sum + sub.amount, 0),
-      currencyCode: subs[0]?.currencyCode || 'MYR' // Assuming same currency for simplicity in display
-    }));
 
   return (
     <div className="space-y-10">
@@ -118,9 +108,11 @@ export function CategoryGroupList({ subscriptions, categories, isLoading, onEdit
           </div>
           
           <motion.div
+            layout="position"
             variants={container}
-            initial="hidden"
+            initial={false}
             animate="show"
+            transition={{ type: 'spring', stiffness: 500, damping: 40, mass: 0.8 }}
             className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6"
           >
             {group.subscriptions.map((sub) => (

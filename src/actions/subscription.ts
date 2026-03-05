@@ -11,6 +11,8 @@ import { createSubscriptionSchema, updateSubscriptionSchema, toggleAutoRenewSche
 // Schemas are imported for server-side validation only
 // Client components should import schemas directly from '@/lib/schemas'
 
+const toPlain = <T>(obj: T): T => JSON.parse(JSON.stringify(obj));
+
 // --- Actions ---
 
 export const createSubscriptionAction = actionClient
@@ -28,7 +30,7 @@ export const createSubscriptionAction = actionClient
       const sub = await SubscriptionService.createSubscription(data);
       revalidatePath('/dashboard');
       revalidatePath('/subscriptions');
-      return { success: true, data: sub };
+      return { success: true, data: toPlain(sub) };
     } catch (error) {
       if (error instanceof AppError) {
         throw new Error(error.message); // Pass through known app errors
@@ -53,7 +55,7 @@ export const updateSubscriptionAction = actionClient
       revalidatePath('/dashboard');
       revalidatePath('/subscriptions');
       revalidatePath(`/subscriptions/${id}`);
-      return { success: true, data: sub };
+      return { success: true, data: toPlain(sub) };
     } catch (error) {
       if (error instanceof AppError) {
         throw new Error(error.message);
@@ -70,7 +72,7 @@ export const toggleAutoRenewAction = actionClient
       revalidatePath('/dashboard');
       revalidatePath('/subscriptions');
       revalidatePath(`/subscriptions/${id}`);
-      return { success: true, data: sub };
+      return { success: true, data: toPlain(sub) };
     } catch (error) {
       if (error instanceof AppError) {
         throw new Error(error.message);

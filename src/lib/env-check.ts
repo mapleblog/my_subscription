@@ -1,11 +1,6 @@
 import { z } from 'zod';
 
 const envSchema = z.object({
-  // Required: 32-byte hex string (64 characters)
-  ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, {
-    message: "ENCRYPTION_KEY must be a 32-byte hex string (64 characters)",
-  }),
-  
   // Optional: Leave empty for free API
   EXCHANGE_API_KEY: z.string().optional(),
   
