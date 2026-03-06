@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -11,6 +13,7 @@
   --font-mono: var(--font-geist-mono);
   
   --animate-shimmer: shimmer 2s infinite linear;
+  --animate-spin-slow: spin 3s linear infinite;
   
   @keyframes shimmer {
     from {
@@ -32,6 +35,12 @@
     --background: #1C1C1E; /* Midnight Grey */
     --foreground: #EDEDED;
   }
+}
+
+/* Explicit dark mode via class for manual toggling */
+.dark {
+  --background: #1C1C1E; /* Midnight Grey */
+  --foreground: #EDEDED;
 }
 
 body {

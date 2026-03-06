@@ -73,21 +73,30 @@ export function DashboardClient({ summary, subscriptions, categories }: Dashboar
       {/* Desktop Header */}
       <div className="hidden md:flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Manage your subscriptions and expenses</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white leading-tight">Dashboard</h1>
+          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">Manage your subscriptions and expenses</p>
         </div>
-        <button
-          onClick={handleCreate}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all font-medium shadow-sm hover:shadow-md active:scale-95"
-        >
-          <Plus size={20} />
-          New Subscription
-        </button>
+        <div className="relative group">
+          <div
+            className="pointer-events-none absolute -inset-0.5 rounded-full blur opacity-60 group-hover:opacity-100 transition duration-500 animate-spin-slow"
+            style={{
+              background:
+                'conic-gradient(from 0deg, #60A5FA, #A855F7, #F472B6, #22D3EE, #60A5FA)',
+            }}
+          />
+          <button
+            onClick={handleCreate}
+            className="relative inline-flex items-center justify-center w-10 h-10 bg-white dark:bg-[#2C2C2E] text-gray-900 dark:text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            aria-label="Add Subscription"
+          >
+            <Plus size={20} />
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+      <div className="space-y-6 md:space-y-8">
         {/* Summary Section */}
-        <div className="md:col-span-1 space-y-6">
+        <div className="space-y-6">
           <SpendDisplay 
             totalAmount={summary.totalMonthlyCost} 
             currency={summary.currencyCode} 
@@ -105,10 +114,10 @@ export function DashboardClient({ summary, subscriptions, categories }: Dashboar
         </div>
 
         {/* List Section */}
-        <div className="md:col-span-2">
+        <div>
           {/* Desktop List Header */}
           <div className="hidden md:flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+            <h2 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white leading-tight">
               All Subscriptions
             </h2>
             <span className="text-sm text-gray-500 dark:text-gray-400 bg-white dark:bg-white/5 px-3 py-1 rounded-full border border-gray-200 dark:border-white/10">
@@ -134,13 +143,26 @@ export function DashboardClient({ summary, subscriptions, categories }: Dashboar
       </div>
       
       {/* Mobile Floating Action Button */}
-      <button 
-        onClick={handleCreate}
-        className="md:hidden fixed bottom-24 right-6 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-transform active:scale-95 z-40"
-        aria-label="Add Subscription"
-      >
-        <Plus size={28} />
-      </button>
+      <div className="md:hidden fixed bottom-24 right-6 z-40">
+        <div
+          className="relative group w-14 h-14"
+        >
+          <div
+            className="pointer-events-none absolute -inset-1 rounded-full blur-lg opacity-60 group-hover:opacity-100 transition duration-500 animate-spin-slow"
+            style={{
+              background:
+                'conic-gradient(from 0deg, #60A5FA, #A855F7, #F472B6, #22D3EE, #60A5FA)',
+            }}
+          />
+          <button
+            onClick={handleCreate}
+            className="relative w-14 h-14 bg-white dark:bg-[#2C2C2E] text-gray-900 dark:text-white rounded-full shadow-xl flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            aria-label="Add Subscription"
+          >
+            <Plus size={28} />
+          </button>
+        </div>
+      </div>
 
       <SubscriptionDrawer 
         open={isDrawerOpen}

@@ -1,4 +1,10 @@
 import { Settings } from 'lucide-react';
+import { cookies } from 'next/headers';
+import prisma from '@/lib/prisma';
+import { redis } from '@/lib/redis';
+import DisplayNameForm from '@/components/settings/DisplayNameForm';
+import ThemePicker from '@/components/settings/ThemePicker';
+import { cookies as getCookies } from 'next/headers';
 
 export default function SettingsPage() {
   return (
@@ -20,6 +26,7 @@ export default function SettingsPage() {
           </div>
           
           <div className="space-y-4">
+            <UserSection />
             <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#2C2C2E] rounded-xl">
               <div>
                 <p className="font-medium text-gray-900 dark:text-white">Currency</p>
@@ -27,14 +34,7 @@ export default function SettingsPage() {
               </div>
               <span className="text-sm font-bold text-gray-900 dark:text-white">MYR</span>
             </div>
-            
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#2C2C2E] rounded-xl">
-              <div>
-                <p className="font-medium text-gray-900 dark:text-white">Theme</p>
-                <p className="text-sm text-gray-500">Appearance mode</p>
-              </div>
-              <span className="text-sm font-bold text-gray-900 dark:text-white">System</span>
-            </div>
+            <ThemeSection />
 
             <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#2C2C2E] rounded-xl">
               <div>
@@ -53,4 +53,45 @@ export default function SettingsPage() {
       </div>
     </div>
   );
+}
+
+async function UserSection() {
+  const c = await cookies();
+  const auth = c.get('auth');
+  let email = '';
+  let displayName = '';
+  if (auth) {
+    let userId = await redis.get<string>(`session:${auth.value}`);
+    if (!userId) {
+      const session = await prisma.session.findUnique({ where: { token: auth.value } });
+      if (session && session.expiresAt > new Date()) {
+        userId = session.userId;
+      }
+    }
+    if (userId) {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (user) {
+        email = user.email;
+        displayName = user.displayName || '';
+      }
+    }
+  }
+  const fallback = email ? email.split('@')[0] : '';
+  const initial = displayName || (fallback ? fallback.charAt(0).toUpperCase() + fallback.slice(1) : '');
+  return (
+    <div className="p-4 bg-gray-50 dark:bg-[#2C2C2E] rounded-xl">
+      <div className="mb-3">
+        <p className="font-medium text-gray-900 dark:text-white">Display Name</p>
+        <p className="text-sm text-gray-500">Shown in the sidebar user section</p>
+      </div>
+      <DisplayNameForm initialName={initial} />
+    </div>
+  );
+}
+
+async function ThemeSection() {
+  const cookies = await getCookies();
+  const theme = cookies.get('theme')?.value as 'light' | 'dark' | 'system' | undefined;
+  const initialMode = theme || 'system';
+  return <ThemePicker initialMode={initialMode} />;
 }

@@ -29,7 +29,6 @@ export const createSubscriptionAction = actionClient
     try {
       const sub = await SubscriptionService.createSubscription(data);
       revalidatePath('/dashboard');
-      revalidatePath('/subscriptions');
       return { success: true, data: toPlain(sub) };
     } catch (error) {
       if (error instanceof AppError) {
@@ -53,8 +52,6 @@ export const updateSubscriptionAction = actionClient
     try {
       const sub = await SubscriptionService.updateSubscription(id, data);
       revalidatePath('/dashboard');
-      revalidatePath('/subscriptions');
-      revalidatePath(`/subscriptions/${id}`);
       return { success: true, data: toPlain(sub) };
     } catch (error) {
       if (error instanceof AppError) {
@@ -70,8 +67,6 @@ export const toggleAutoRenewAction = actionClient
     try {
       const sub = await SubscriptionService.toggleAutoRenew(id);
       revalidatePath('/dashboard');
-      revalidatePath('/subscriptions');
-      revalidatePath(`/subscriptions/${id}`);
       return { success: true, data: toPlain(sub) };
     } catch (error) {
       if (error instanceof AppError) {
@@ -87,7 +82,6 @@ export const deleteSubscriptionAction = actionClient
     try {
       await SubscriptionService.deleteSubscription(id);
       revalidatePath('/dashboard');
-      revalidatePath('/subscriptions');
       return { success: true };
     } catch (error) {
       if (error instanceof AppError) {

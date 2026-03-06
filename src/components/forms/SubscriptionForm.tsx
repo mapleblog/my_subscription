@@ -155,19 +155,21 @@ export function SubscriptionForm({
 
   const onSubmit = (data: FormData) => {
     const amountInCents = Math.round(parseFloat(data.amount) * 100);
-    const payload = {
-      ...data,
-      amount: amountInCents,
-      startDate: new Date(data.startDate),
-    };
+    const base = { ...data, amount: amountInCents };
 
     if (isEditMode && subscription) {
-      executeUpdate({
-        id: subscription.id,
-        ...payload,
-      });
+      const payloadEdit: Partial<typeof base> & { nextBillingDate: Date } = {
+        ...base,
+        nextBillingDate: new Date(data.startDate),
+      };
+      delete (payloadEdit as Record<string, unknown>).startDate;
+      executeUpdate({ id: subscription.id, ...payloadEdit });
     } else {
-      executeCreate(payload);
+      const payloadCreate = {
+        ...base,
+        startDate: new Date(data.startDate),
+      };
+      executeCreate(payloadCreate);
     }
   };
 

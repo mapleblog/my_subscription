@@ -2,8 +2,9 @@
 
 import { motion, Variants } from 'framer-motion';
 import React from 'react';
-import { formatCurrencyParts, formatRelativeDate } from '@/lib/utils';
-import { Calendar, Sparkles } from 'lucide-react';
+import { formatCurrencyParts } from '@/lib/utils';
+import { AlertCircle, AlertTriangle, Calendar, Sparkles } from 'lucide-react';
+import { differenceInCalendarDays, format, isValid, startOfDay } from 'date-fns';
 
 interface SubscriptionCardProps {
   id: string;
@@ -18,6 +19,47 @@ interface SubscriptionCardProps {
   logo?: string; // Optional logo URL or placeholder
   variants?: Variants;
   onClick?: () => void;
+}
+
+type BillingDateInfo =
+  | { ok: true; date: Date; ymd: string }
+  | { ok: false; error: string };
+
+function parseYYYYMMDDToLocalDate(ymd: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
+  if (month < 1 || month > 12) return null;
+  if (day < 1 || day > 31) return null;
+
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+
+  return startOfDay(date);
+}
+
+function getBillingDateInfo(input: Date | string): BillingDateInfo {
+  if (input instanceof Date) {
+    if (!isValid(input)) return { ok: false, error: 'Invalid next bill date' };
+    const localDay = startOfDay(input);
+    return { ok: true, date: localDay, ymd: format(localDay, 'yyyy-MM-dd') };
+  }
+
+  const trimmed = input.trim();
+  const localDateOnly = parseYYYYMMDDToLocalDate(trimmed);
+  if (localDateOnly) {
+    return { ok: true, date: localDateOnly, ymd: format(localDateOnly, 'yyyy-MM-dd') };
+  }
+
+  const parsed = new Date(trimmed);
+  if (!isValid(parsed)) return { ok: false, error: 'Invalid next bill date' };
+  const localDay = startOfDay(parsed);
+  return { ok: true, date: localDay, ymd: format(localDay, 'yyyy-MM-dd') };
 }
 
 function SubscriptionCardBase({
@@ -45,6 +87,52 @@ function SubscriptionCardBase({
     boxShadow: `0 8px 24px -6px ${categoryColor}66, 0 4px 12px -4px rgba(0,0,0,0.1)`, // Colored shadow matching the card
   };
 
+  const billingDateInfo = React.useMemo(() => {
+    if (!nextBillingDate) return null;
+    return getBillingDateInfo(nextBillingDate);
+  }, [nextBillingDate]);
+
+  const reminderBadge = React.useMemo(() => {
+    if (!billingDateInfo) return null;
+
+    if (!billingDateInfo.ok) {
+      return {
+        className: 'bg-gradient-to-r from-gray-500 to-gray-400 text-white shadow-md',
+        icon: <AlertCircle size={12} className="opacity-90" />,
+        text: billingDateInfo.error,
+      };
+    }
+
+    const today = startOfDay(new Date());
+    const diffDays = differenceInCalendarDays(billingDateInfo.date, today);
+    const absDiffDays = Math.abs(diffDays);
+
+    if (diffDays <= 3) {
+      const text =
+        diffDays === 0
+          ? 'Bill due today'
+          : diffDays > 0
+            ? `Bill due in ${absDiffDays} ${absDiffDays === 1 ? 'day' : 'days'}`
+            : `Bill overdue by ${absDiffDays} ${absDiffDays === 1 ? 'day' : 'days'}`;
+
+      return {
+        className: 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-lg',
+        icon: <AlertCircle size={12} className="opacity-95" />,
+        text,
+      };
+    }
+
+    if (diffDays > 3 && diffDays <= 7) {
+      return {
+        className: 'bg-gradient-to-r from-amber-400 to-amber-300 text-black shadow-md',
+        icon: <AlertTriangle size={12} className="opacity-90" />,
+        text: `Bill due in ${absDiffDays} days`,
+      };
+    }
+
+    return null;
+  }, [billingDateInfo]);
+
   return (
     <motion.div
       layout="position"
@@ -71,6 +159,17 @@ function SubscriptionCardBase({
         {/* Glass/Noise Texture Overlay (Optional, using subtle gradient instead for performance) */}
         <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
         
+        {reminderBadge && (
+          <div
+            className={`absolute -top-1 -left-4 w-[64px] h-7 rotate-[-22deg] ${reminderBadge.className} z-20 flex items-center justify-center transition-all duration-300`}
+            style={{ borderRadius: 9999 }}
+            title={reminderBadge.text}
+            aria-label={reminderBadge.text}
+            role="note"
+          >
+          </div>
+        )}
+
         {/* Top Row: Logo & Amount */}
         <div className="relative flex justify-between items-start z-10">
           {/* Logo Circle */}
@@ -127,7 +226,7 @@ function SubscriptionCardBase({
             {nextBillingDate && (
               <div className="flex items-center justify-end text-xs font-medium text-white/80 drop-shadow-sm">
                 <Calendar size={12} className="mr-1.5 opacity-70" />
-                <span>{formatRelativeDate(new Date(nextBillingDate))}</span>
+                <span>{billingDateInfo?.ok ? billingDateInfo.ymd : 'Invalid date'}</span>
               </div>
             )}
           </div>

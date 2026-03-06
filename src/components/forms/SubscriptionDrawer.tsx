@@ -5,6 +5,7 @@ import { Drawer } from 'vaul';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { SubscriptionForm, SubscriptionFormProps } from './SubscriptionForm';
+import { useRouter } from 'next/navigation';
 
 interface SubscriptionDrawerProps extends Omit<SubscriptionFormProps, 'onSuccess' | 'onCancel'> {
   open: boolean;
@@ -18,9 +19,11 @@ export function SubscriptionDrawer({
   subscription 
 }: SubscriptionDrawerProps) {
   const isDesktop = useMediaQuery('(min-width: 768px)');
+  const router = useRouter();
 
   const handleSuccess = () => {
     onOpenChange(false);
+    router.refresh();
   };
 
   if (isDesktop) {

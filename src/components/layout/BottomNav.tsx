@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, CreditCard, Settings } from 'lucide-react';
+import { LayoutDashboard } from 'lucide-react';
 import { clsx } from 'clsx';
 
 const navItems = [
@@ -11,16 +11,6 @@ const navItems = [
     name: 'Dashboard',
     href: '/dashboard',
     icon: LayoutDashboard,
-  },
-  {
-    name: 'Subscriptions',
-    href: '/subscriptions',
-    icon: CreditCard,
-  },
-  {
-    name: 'Settings',
-    href: '/settings',
-    icon: Settings,
   },
 ];
 
