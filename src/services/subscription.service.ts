@@ -17,6 +17,31 @@ export interface SubscriptionData {
   isAutoRenew: boolean;
 }
 
+function slugifyCategoryName(name: string): string {
+  const trimmed = name.trim().toLowerCase();
+  const slug = trimmed
+    .replace(/['"]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50);
+  return slug || 'category';
+}
+
+async function generateUniqueCategorySlug(base: string): Promise<string> {
+  const baseSlug = base.slice(0, 50) || 'category';
+  const existingBase = await prisma.category.findUnique({ where: { slug: baseSlug } });
+  if (!existingBase) return baseSlug;
+
+  for (let i = 2; i <= 50; i += 1) {
+    const candidate = `${baseSlug}-${i}`.slice(0, 50);
+    const existing = await prisma.category.findUnique({ where: { slug: candidate } });
+    if (!existing) return candidate;
+  }
+
+  const suffix = Math.random().toString(36).slice(2, 6);
+  return `${baseSlug}-${suffix}`.slice(0, 50);
+}
+
 function calculateNextBillingDate(startDate: Date, cycle: string): Date {
   const nextDate = new Date(startDate);
   switch (cycle) {
@@ -137,7 +162,61 @@ export const SubscriptionService = {
    * Get all categories
    */
   getCategories: async () => {
-    return await prisma.category.findMany();
+    return await prisma.category.findMany({ orderBy: { name: 'asc' } });
+  },
+
+  /**
+   * Update category color
+   */
+  updateCategoryColor: async (id: string, color: string) => {
+    const hex = color.trim();
+    if (!/^#([0-9a-fA-F]{6})$/.test(hex)) {
+      throw new AppError(AppErrors.INVALID_INPUT, 'Invalid category color');
+    }
+
+    const existing = await prisma.category.findUnique({ where: { id } });
+    if (!existing) {
+      throw new AppError(AppErrors.INVALID_CATEGORY, `Category ID ${id} not found`);
+    }
+
+    return await prisma.category.update({
+      where: { id },
+      data: { color: hex },
+    });
+  },
+
+  /**
+   * Create a new category
+   */
+  createCategory: async (data: { name: string; color?: string; icon?: string }) => {
+    const name = data.name.trim();
+    if (!name) {
+      throw new AppError(AppErrors.INVALID_INPUT, 'Category name is required');
+    }
+
+    const existingByName = await prisma.category.findFirst({
+      where: { name: { equals: name, mode: 'insensitive' } },
+    });
+    if (existingByName) {
+      throw new AppError(AppErrors.DUPLICATE_ENTRY, 'Category already exists');
+    }
+
+    const color = (data.color || '#6366F1').trim();
+    if (!/^#([0-9a-fA-F]{6})$/.test(color)) {
+      throw new AppError(AppErrors.INVALID_INPUT, 'Invalid category color');
+    }
+
+    const slug = await generateUniqueCategorySlug(slugifyCategoryName(name));
+    const icon = (data.icon || 'tag').trim() || 'tag';
+
+    return await prisma.category.create({
+      data: {
+        name,
+        slug,
+        icon,
+        color,
+      },
+    });
   },
 
   /**

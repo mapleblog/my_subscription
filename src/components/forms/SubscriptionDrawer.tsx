@@ -16,7 +16,9 @@ export function SubscriptionDrawer({
   open, 
   onOpenChange, 
   categories = [], 
-  subscription 
+  subscription,
+  onCategoryCreated,
+  onCategoryUpdated
 }: SubscriptionDrawerProps) {
   const isDesktop = useMediaQuery('(min-width: 768px)');
   const router = useRouter();
@@ -51,6 +53,7 @@ export function SubscriptionDrawer({
               <div className="p-8 max-h-[90vh] overflow-y-auto">
                 <SubscriptionForm
                   categories={categories}
+                  onCategoryCreated={onCategoryCreated}
                   subscription={subscription}
                   onSuccess={handleSuccess}
                   onCancel={() => onOpenChange(false)}
@@ -74,6 +77,8 @@ export function SubscriptionDrawer({
             <div className="max-w-md mx-auto relative">
               <SubscriptionForm
                 categories={categories}
+                onCategoryCreated={onCategoryCreated}
+                onCategoryUpdated={onCategoryUpdated}
                 subscription={subscription}
                 onSuccess={handleSuccess}
                 onCancel={() => onOpenChange(false)}

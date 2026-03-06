@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useCountUp } from '@/hooks/use-count-up';
 import { formatCurrencyParts } from '@/lib/utils';
 
@@ -11,15 +11,49 @@ interface SpendDisplayProps {
 
 export function SpendDisplay({ totalAmount, currency = 'MYR' }: SpendDisplayProps) {
   const animatedAmount = useCountUp(totalAmount);
+  const reduceMotion = useReducedMotion();
   
   return (
     <div className="relative w-full h-48 overflow-hidden rounded-3xl">
       {/* Mesh Gradient Background */}
       <div className="absolute inset-0 bg-white dark:bg-black">
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-pink-900/20 opacity-70 animate-pulse" />
-        <div className="absolute -top-24 -left-24 w-64 h-64 bg-blue-400/30 rounded-full blur-3xl animate-blob" />
-        <div className="absolute top-24 -right-24 w-64 h-64 bg-purple-400/30 rounded-full blur-3xl animate-blob animation-delay-2000" />
-        <div className="absolute -bottom-32 left-20 w-64 h-64 bg-pink-400/30 rounded-full blur-3xl animate-blob animation-delay-4000" />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-pink-900/20 opacity-70" />
+        <motion.div
+          className="pointer-events-none absolute -top-28 -right-28 w-72 h-72 sm:w-80 sm:h-80 rounded-full blur-3xl opacity-70 dark:opacity-50"
+          style={{
+            background:
+              'radial-gradient(circle at 35% 35%, rgba(96,165,250,0.62) 0%, rgba(168,85,247,0.4) 35%, rgba(0,0,0,0) 70%)',
+          }}
+          initial={false}
+          animate={
+            reduceMotion
+              ? { opacity: 0.7 }
+              : { x: [0, -6, 0], y: [0, 6, 0], opacity: [0.62, 0.78, 0.62] }
+          }
+          transition={
+            reduceMotion
+              ? undefined
+              : { duration: 14, repeat: Infinity, ease: 'easeInOut' }
+          }
+        />
+        <motion.div
+          className="pointer-events-none absolute -bottom-32 -left-32 w-80 h-80 sm:w-96 sm:h-96 rounded-full blur-3xl opacity-70 dark:opacity-50"
+          style={{
+            background:
+              'radial-gradient(circle at 65% 65%, rgba(244,114,182,0.6) 0%, rgba(34,211,238,0.3) 35%, rgba(0,0,0,0) 70%)',
+          }}
+          initial={false}
+          animate={
+            reduceMotion
+              ? { opacity: 0.7 }
+              : { x: [0, 7, 0], y: [0, -7, 0], opacity: [0.58, 0.74, 0.58] }
+          }
+          transition={
+            reduceMotion
+              ? undefined
+              : { duration: 16, repeat: Infinity, ease: 'easeInOut' }
+          }
+        />
       </div>
 
       {/* Glass Panel Overlay */}

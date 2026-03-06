@@ -1,11 +1,11 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { createSubscriptionAction, updateSubscriptionAction, deleteSubscriptionAction } from '@/actions/subscription';
+import { createCategoryAction, updateCategoryColorAction, createSubscriptionAction, updateSubscriptionAction, deleteSubscriptionAction } from '@/actions/subscription';
 import { createSubscriptionSchema } from '@/lib/schemas';
 import { useAction } from 'next-safe-action/hooks';
 import { logger } from '@/lib/logger';
@@ -28,6 +28,8 @@ const CYCLES = ['Monthly', 'Yearly', 'Quarterly', 'Weekly'] as const;
 
 export interface SubscriptionFormProps {
   categories?: { id: string; name: string; color?: string }[];
+  onCategoryCreated?: (category: { id: string; name: string; color?: string }) => void;
+  onCategoryUpdated?: (category: { id: string; name: string; color?: string }) => void;
   subscription?: {
     id: string;
     name: string;
@@ -35,6 +37,7 @@ export interface SubscriptionFormProps {
     currencyCode: string;
     cycle: string;
     startDate: Date;
+    nextBillingDate?: Date;
     categoryId?: string | null;
     isAutoRenew: boolean;
   } | null;
@@ -44,17 +47,22 @@ export interface SubscriptionFormProps {
 
 export function SubscriptionForm({ 
   categories = [], 
+  onCategoryCreated,
+  onCategoryUpdated,
   subscription,
   onSuccess,
   onCancel
 }: SubscriptionFormProps) {
   const isEditMode = !!subscription;
+  const categoriesForSelect = categories.slice().sort((a, b) => a.name.localeCompare(b.name));
+  const lastCategoryIdRef = useRef<string>('');
 
   const {
     register,
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -67,6 +75,13 @@ export function SubscriptionForm({
 
   const { rates, convert, isLoading: isLoadingRates, error: ratesError } = useExchangeRates();
   const [convertedAmount, setConvertedAmount] = useState<string | null>(null);
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryColor, setNewCategoryColor] = useState('#6366F1');
+  const [createCategoryError, setCreateCategoryError] = useState<string | null>(null);
+  const [isEditColorOpen, setIsEditColorOpen] = useState(false);
+  const [editColorValue, setEditColorValue] = useState('#6366F1');
+  const [editColorError, setEditColorError] = useState<string | null>(null);
 
   const watchedAmount = watch('amount');
   const watchedCurrency = watch('currencyCode');
@@ -105,10 +120,11 @@ export function SubscriptionForm({
         cycle: (CYCLES as readonly string[]).includes(subscription.cycle)
           ? (subscription.cycle as FormData['cycle'])
           : 'Monthly',
-        startDate: format(new Date(subscription.startDate), 'yyyy-MM-dd'),
+        startDate: format(new Date(subscription.nextBillingDate ?? subscription.startDate), 'yyyy-MM-dd'),
         categoryId: subscription.categoryId || '',
         isAutoRenew: subscription.isAutoRenew,
       });
+      lastCategoryIdRef.current = subscription.categoryId || '';
     } else {
       // Create Mode: Reset to defaults
       reset({
@@ -120,6 +136,7 @@ export function SubscriptionForm({
         categoryId: '',
         isAutoRenew: true,
       });
+      lastCategoryIdRef.current = '';
     }
   }, [subscription, reset]);
 
@@ -150,6 +167,37 @@ export function SubscriptionForm({
     },
     onError: ({ error }) => {
       logger.error('Failed to delete subscription', error);
+    },
+  });
+
+  const { execute: executeCreateCategory, isExecuting: isCreatingCategory } = useAction(createCategoryAction, {
+    onSuccess: ({ data }) => {
+      const created = data?.data as unknown as { id: string; name: string; color?: string } | undefined;
+      if (!created) return;
+      onCategoryCreated?.({ id: created.id, name: created.name, color: created.color });
+      setValue('categoryId', created.id, { shouldValidate: true, shouldDirty: true });
+      setIsAddCategoryOpen(false);
+      setNewCategoryName('');
+      setNewCategoryColor('#6366F1');
+      setCreateCategoryError(null);
+    },
+    onError: ({ error }) => {
+      const message = error?.serverError?.message || 'Failed to create category';
+      setCreateCategoryError(message);
+    },
+  });
+
+  const { execute: executeUpdateCategoryColor, isExecuting: isUpdatingCategoryColor } = useAction(updateCategoryColorAction, {
+    onSuccess: ({ data }) => {
+      const updated = data?.data as unknown as { id: string; name: string; color?: string } | undefined;
+      if (!updated) return;
+      onCategoryUpdated?.({ id: updated.id, name: updated.name, color: updated.color });
+      setIsEditColorOpen(false);
+      setEditColorError(null);
+    },
+    onError: ({ error }) => {
+      const message = error?.serverError?.message || 'Failed to update color';
+      setEditColorError(message);
     },
   });
 
@@ -335,19 +383,247 @@ export function SubscriptionForm({
         <label htmlFor="category" className="text-sm font-medium text-gray-700 dark:text-gray-300">
           Category (Optional)
         </label>
-        <select
-          {...register('categoryId')}
-          id="category"
-          className="w-full p-3 rounded-xl bg-gray-50 dark:bg-[#2C2C2E] border border-transparent focus:border-blue-500 outline-none text-gray-900 dark:text-white"
-        >
-          <option value="">Select a category</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.name}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-3">
+          <select
+            {...register('categoryId', {
+              onChange: (e) => {
+                const v = (e.target as HTMLSelectElement).value;
+                if (v === '__add_category__') {
+                  setCreateCategoryError(null);
+                  setNewCategoryName('');
+                  setNewCategoryColor('#6366F1');
+                  setIsAddCategoryOpen(true);
+                  setValue('categoryId', lastCategoryIdRef.current, { shouldDirty: false });
+                  return;
+                }
+                lastCategoryIdRef.current = v;
+                if (v && v !== '') {
+                  const selected = categoriesForSelect.find(c => c.id === v);
+                  const col = selected?.color || '#6366F1';
+                  setEditColorValue(col);
+                }
+              },
+            })}
+            id="category"
+            className="flex-1 p-3 rounded-xl bg-gray-50 dark:bg-[#2C2C2E] border border-transparent focus:border-blue-500 outline-none text-gray-900 dark:text-white"
+          >
+            <option value="">Select a category</option>
+            {categoriesForSelect.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
+            <option value="__add_category__">+ Add category</option>
+          </select>
+          <button
+            type="button"
+            className="px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+            onClick={() => {
+              const v = lastCategoryIdRef.current;
+              if (!v) return;
+              const selected = categoriesForSelect.find(c => c.id === v);
+              const col = selected?.color || '#6366F1';
+              setEditColorValue(col);
+              setEditColorError(null);
+              setIsEditColorOpen(true);
+            }}
+            disabled={!lastCategoryIdRef.current}
+            aria-label="Edit color"
+          >
+            Edit color
+          </button>
+        </div>
       </div>
+
+      {isEditColorOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => {
+              if (!isUpdatingCategoryColor) setIsEditColorOpen(false);
+            }}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="relative w-full max-w-md rounded-2xl bg-white dark:bg-[#1C1C1E] shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden"
+          >
+            <div className="p-6 space-y-5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Edit color</h3>
+                <button
+                  type="button"
+                  className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 active:scale-95"
+                  onClick={() => {
+                    if (!isUpdatingCategoryColor) setIsEditColorOpen(false);
+                  }}
+                  aria-label="Close"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300" htmlFor="editColor">
+                  Color
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    id="editColor"
+                    type="color"
+                    value={editColorValue}
+                    onChange={(e) => setEditColorValue(e.target.value)}
+                    className="h-10 w-12 rounded-lg border border-gray-200 dark:border-white/10 bg-transparent"
+                  />
+                  <input
+                    value={editColorValue}
+                    onChange={(e) => setEditColorValue(e.target.value)}
+                    className="flex-1 p-3 rounded-xl bg-gray-50 dark:bg-[#2C2C2E] border border-transparent focus:border-blue-500 outline-none text-gray-900 dark:text-white font-mono"
+                    placeholder="#6366F1"
+                  />
+                  <div
+                    className="h-10 w-10 rounded-xl border border-gray-200 dark:border-white/10"
+                    style={{ backgroundColor: /^#([0-9a-fA-F]{6})$/.test(editColorValue) ? editColorValue : '#6366F1' }}
+                    aria-label="Color preview"
+                  />
+                </div>
+              </div>
+
+              {editColorError && (
+                <div className="p-3 rounded-xl bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 text-sm">
+                  {editColorError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors active:scale-[0.98]"
+                  onClick={() => {
+                    if (!isUpdatingCategoryColor) setIsEditColorOpen(false);
+                  }}
+                  disabled={isUpdatingCategoryColor}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={isUpdatingCategoryColor || !/^#([0-9a-fA-F]{6})$/.test(editColorValue)}
+                  onClick={() => {
+                    setEditColorError(null);
+                    const id = lastCategoryIdRef.current;
+                    if (!id) return;
+                    executeUpdateCategoryColor({ id, color: editColorValue });
+                  }}
+                >
+                  {isUpdatingCategoryColor ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {isAddCategoryOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => {
+              if (!isCreatingCategory) setIsAddCategoryOpen(false);
+            }}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="relative w-full max-w-md rounded-2xl bg-white dark:bg-[#1C1C1E] shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden"
+          >
+            <div className="p-6 space-y-5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add category</h3>
+                <button
+                  type="button"
+                  className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 active:scale-95"
+                  onClick={() => {
+                    if (!isCreatingCategory) setIsAddCategoryOpen(false);
+                  }}
+                  aria-label="Close"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300" htmlFor="newCategoryName">
+                  Category name
+                </label>
+                <input
+                  id="newCategoryName"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="e.g. Streaming"
+                  className="w-full p-3 rounded-xl bg-gray-50 dark:bg-[#2C2C2E] border border-transparent focus:border-blue-500 outline-none text-gray-900 dark:text-white"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300" htmlFor="newCategoryColor">
+                  Color
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    id="newCategoryColor"
+                    type="color"
+                    value={newCategoryColor}
+                    onChange={(e) => setNewCategoryColor(e.target.value)}
+                    className="h-10 w-12 rounded-lg border border-gray-200 dark:border-white/10 bg-transparent"
+                  />
+                  <input
+                    value={newCategoryColor}
+                    onChange={(e) => setNewCategoryColor(e.target.value)}
+                    className="flex-1 p-3 rounded-xl bg-gray-50 dark:bg-[#2C2C2E] border border-transparent focus:border-blue-500 outline-none text-gray-900 dark:text-white font-mono"
+                    placeholder="#6366F1"
+                  />
+                  <div
+                    className="h-10 w-10 rounded-xl border border-gray-200 dark:border-white/10"
+                    style={{ backgroundColor: /^#([0-9a-fA-F]{6})$/.test(newCategoryColor) ? newCategoryColor : '#6366F1' }}
+                    aria-label="Color preview"
+                  />
+                </div>
+              </div>
+
+              {createCategoryError && (
+                <div className="p-3 rounded-xl bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 text-sm">
+                  {createCategoryError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors active:scale-[0.98]"
+                  onClick={() => {
+                    if (!isCreatingCategory) setIsAddCategoryOpen(false);
+                  }}
+                  disabled={isCreatingCategory}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={isCreatingCategory || newCategoryName.trim().length === 0}
+                  onClick={() => {
+                    setCreateCategoryError(null);
+                    executeCreateCategory({ name: newCategoryName.trim(), color: newCategoryColor });
+                  }}
+                >
+                  {isCreatingCategory ? 'Creating...' : 'Create'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Auto Renew Toggle */}
       <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-[#2C2C2E]">

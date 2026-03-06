@@ -7,7 +7,7 @@ import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { AppError } from '@/lib/errors';
 
-import { createSubscriptionSchema, updateSubscriptionSchema, toggleAutoRenewSchema, deleteSubscriptionSchema } from '@/lib/schemas';
+import { createSubscriptionSchema, createCategorySchema, updateSubscriptionSchema, toggleAutoRenewSchema, deleteSubscriptionSchema, updateCategoryColorSchema } from '@/lib/schemas';
 // Schemas are imported for server-side validation only
 // Client components should import schemas directly from '@/lib/schemas'
 
@@ -33,6 +33,50 @@ export const createSubscriptionAction = actionClient
     } catch (error) {
       if (error instanceof AppError) {
         throw new Error(error.message); // Pass through known app errors
+      }
+      throw error;
+    }
+  });
+
+export const createCategoryAction = actionClient
+  .schema(createCategorySchema)
+  .action(async ({ parsedInput: data }) => {
+    const ip = (await headers()).get('x-forwarded-for') || 'unknown';
+    const isAllowed = await checkRateLimit(`create_cat:${ip}`);
+    if (!isAllowed) {
+      throw new Error('Rate limit exceeded. Please try again later.');
+    }
+
+    try {
+      const category = await SubscriptionService.createCategory(data);
+      revalidatePath('/dashboard');
+      revalidatePath('/subscriptions');
+      return { success: true, data: toPlain(category) };
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw new Error(error.message);
+      }
+      throw error;
+    }
+  });
+
+export const updateCategoryColorAction = actionClient
+  .schema(updateCategoryColorSchema)
+  .action(async ({ parsedInput: { id, color } }) => {
+    const ip = (await headers()).get('x-forwarded-for') || 'unknown';
+    const isAllowed = await checkRateLimit(`update_cat_color:${ip}`);
+    if (!isAllowed) {
+      throw new Error('Rate limit exceeded. Please try again later.');
+    }
+
+    try {
+      const category = await SubscriptionService.updateCategoryColor(id, color);
+      revalidatePath('/dashboard');
+      revalidatePath('/subscriptions');
+      return { success: true, data: toPlain(category) };
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw new Error(error.message);
       }
       throw error;
     }

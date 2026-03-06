@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SpendDisplay } from '@/components/dashboard/SpendDisplay';
 import { SubscriptionList } from '@/components/dashboard/SubscriptionList';
 import { CategoryGroupList } from '@/components/dashboard/CategoryGroupList';
@@ -48,6 +48,11 @@ interface DashboardClientProps {
 export function DashboardClient({ summary, subscriptions, categories }: DashboardClientProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedSubscription, setSelectedSubscription] = useState<DashboardSubscription | null>(null);
+  const [categoriesState, setCategoriesState] = useState<Category[]>(categories);
+
+  useEffect(() => {
+    setCategoriesState(categories);
+  }, [categories]);
 
   // Handle edit request from list
   const handleEdit = (sub: { id: string }) => {
@@ -61,11 +66,26 @@ export function DashboardClient({ summary, subscriptions, categories }: Dashboar
     setIsDrawerOpen(true);
   };
 
+  const handleCategoryCreated = (category: Category) => {
+    setCategoriesState((prev) => {
+      if (prev.some((c) => c.id === category.id)) return prev;
+      return [...prev, category].sort((a, b) => a.name.localeCompare(b.name));
+    });
+  };
+
+  const handleCategoryUpdated = (category: Category) => {
+    setCategoriesState((prev) => {
+      const next = prev.map((c) => (c.id === category.id ? { ...c, color: category.color } : c));
+      return next.sort((a, b) => a.name.localeCompare(b.name));
+    });
+  };
+
   // Prepare subscription for drawer (convert string dates to Date objects if needed)
   // This ensures that the drawer always receives a Date object for startDate
   const drawerSubscription = selectedSubscription ? {
     ...selectedSubscription,
     startDate: new Date(selectedSubscription.startDate),
+    nextBillingDate: new Date(selectedSubscription.nextBillingDate),
   } : null;
 
   return (
@@ -135,7 +155,7 @@ export function DashboardClient({ summary, subscriptions, categories }: Dashboar
           <div className="hidden md:block">
             <CategoryGroupList 
               subscriptions={subscriptions} 
-              categories={categories}
+              categories={categoriesState}
               onEdit={handleEdit}
             />
           </div>
@@ -167,7 +187,9 @@ export function DashboardClient({ summary, subscriptions, categories }: Dashboar
       <SubscriptionDrawer 
         open={isDrawerOpen}
         onOpenChange={setIsDrawerOpen}
-        categories={categories}
+        categories={categoriesState}
+        onCategoryCreated={handleCategoryCreated}
+        onCategoryUpdated={handleCategoryUpdated}
         subscription={drawerSubscription}
       />
     </div>

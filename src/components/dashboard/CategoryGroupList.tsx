@@ -125,6 +125,7 @@ export function CategoryGroupList({ subscriptions, categories, isLoading, onEdit
                 cycle={sub.cycle}
                 nextBillingDate={sub.nextBillingDate}
                 isUpcoming={sub.isUpcoming}
+                isAutoRenew={sub.isAutoRenew}
                 category={sub.category?.name}
                 categoryColor={sub.category?.color}
                 variants={item}

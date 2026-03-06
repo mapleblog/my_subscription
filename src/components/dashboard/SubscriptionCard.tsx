@@ -14,6 +14,7 @@ interface SubscriptionCardProps {
   nextBillingDate?: Date | string;
   cycle: string;
   isUpcoming?: boolean;
+  isAutoRenew?: boolean;
   category?: string;
   categoryColor?: string;
   logo?: string; // Optional logo URL or placeholder
@@ -70,6 +71,7 @@ function SubscriptionCardBase({
   nextBillingDate,
   cycle,
   isUpcoming,
+  isAutoRenew,
   category,
   categoryColor = '#6366F1', // Default Indigo
   variants,
@@ -133,6 +135,22 @@ function SubscriptionCardBase({
     return null;
   }, [billingDateInfo]);
 
+  const expiredBanner = React.useMemo(() => {
+    if (!billingDateInfo || !billingDateInfo.ok) return null;
+    const today = startOfDay(new Date());
+    const isExpired = differenceInCalendarDays(billingDateInfo.date, today) < 0 && !isAutoRenew;
+    if (!isExpired) return null;
+    return {
+      text: 'Expired — Renew to resume',
+    };
+  }, [billingDateInfo, isAutoRenew]);
+
+  const isExpired = React.useMemo(() => {
+    if (!billingDateInfo || !billingDateInfo.ok) return false;
+    const today = startOfDay(new Date());
+    return differenceInCalendarDays(billingDateInfo.date, today) < 0 && !isAutoRenew;
+  }, [billingDateInfo, isAutoRenew]);
+
   return (
     <motion.div
       layout="position"
@@ -140,7 +158,7 @@ function SubscriptionCardBase({
       onClick={onClick}
       variants={variants}
       whileTap={{ scale: 0.98 }}
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      whileHover={isExpired ? undefined : { y: -4, transition: { duration: 0.2 } }}
       initial={false}
       animate={variants ? undefined : { opacity: 1, y: 0 }}
       transition={{
@@ -149,15 +167,18 @@ function SubscriptionCardBase({
         damping: 40,
         mass: 0.8,
       }}
-      className="relative w-full group cursor-pointer"
+      className={`relative w-full group ${isExpired ? 'cursor-default' : 'cursor-pointer'}`}
     >
       {/* Wallet Pass Card */}
       <div 
-        className="relative overflow-hidden rounded-[24px] p-5 h-[140px] flex flex-col justify-between transition-all duration-300"
+        className={`relative overflow-hidden rounded-[24px] p-5 h-[140px] flex flex-col justify-between transition-all duration-300 ${isExpired ? 'filter grayscale saturate-50 contrast-75 opacity-85' : ''}`}
         style={cardStyle}
       >
         {/* Glass/Noise Texture Overlay (Optional, using subtle gradient instead for performance) */}
         <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
+        {isExpired && (
+          <div className="absolute inset-0 bg-black/20 pointer-events-none" />
+        )}
         
         {reminderBadge && (
           <div
@@ -168,6 +189,21 @@ function SubscriptionCardBase({
             role="note"
           >
           </div>
+        )}
+        {expiredBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22, ease: [0.2, 0.8, 0.2, 1] }}
+            className="absolute top-3 right-3 z-20"
+          >
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white backdrop-blur-xl border border-white/20 shadow-md">
+              <AlertCircle size={14} className="opacity-90" />
+              <span className="text-xs font-semibold tracking-wide">
+                {expiredBanner.text}
+              </span>
+            </div>
+          </motion.div>
         )}
 
         {/* Top Row: Logo & Amount */}

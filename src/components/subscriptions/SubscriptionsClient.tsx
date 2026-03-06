@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SubscriptionList } from '@/components/dashboard/SubscriptionList';
 import { SubscriptionDrawer } from '@/components/forms/SubscriptionDrawer';
 import { Plus, Search } from 'lucide-react';
@@ -22,6 +22,11 @@ export function SubscriptionsClient({ subscriptions, categories }: Subscriptions
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedSubscription, setSelectedSubscription] = useState<DashboardSubscription | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [categoriesState, setCategoriesState] = useState<Category[]>(categories);
+
+  useEffect(() => {
+    setCategoriesState(categories);
+  }, [categories]);
 
   const filteredSubscriptions = subscriptions.filter(sub => 
     sub.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -39,9 +44,24 @@ export function SubscriptionsClient({ subscriptions, categories }: Subscriptions
     setIsDrawerOpen(true);
   };
 
+  const handleCategoryCreated = (category: Category) => {
+    setCategoriesState((prev) => {
+      if (prev.some((c) => c.id === category.id)) return prev;
+      return [...prev, category].sort((a, b) => a.name.localeCompare(b.name));
+    });
+  };
+
+  const handleCategoryUpdated = (category: Category) => {
+    setCategoriesState((prev) => {
+      const next = prev.map((c) => (c.id === category.id ? { ...c, color: category.color } : c));
+      return next.sort((a, b) => a.name.localeCompare(b.name));
+    });
+  };
+
   const drawerSubscription = selectedSubscription ? {
     ...selectedSubscription,
     startDate: new Date(selectedSubscription.startDate),
+    nextBillingDate: new Date(selectedSubscription.nextBillingDate),
   } : null;
 
   return (
@@ -92,7 +112,9 @@ export function SubscriptionsClient({ subscriptions, categories }: Subscriptions
       <SubscriptionDrawer 
         open={isDrawerOpen}
         onOpenChange={setIsDrawerOpen}
-        categories={categories}
+        categories={categoriesState}
+        onCategoryCreated={handleCategoryCreated}
+        onCategoryUpdated={handleCategoryUpdated}
         subscription={drawerSubscription}
       />
     </div>

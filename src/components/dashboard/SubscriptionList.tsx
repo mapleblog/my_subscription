@@ -12,6 +12,7 @@ interface Subscription {
   cycle: string;
   nextBillingDate: Date | string;
   isUpcoming: boolean;
+  isAutoRenew: boolean;
   category?: { name: string; color?: string } | null;
 }
 
@@ -89,6 +90,7 @@ export function SubscriptionList({ subscriptions, isLoading, onEdit }: Subscript
           cycle={sub.cycle}
           nextBillingDate={sub.nextBillingDate}
           isUpcoming={sub.isUpcoming}
+          isAutoRenew={sub.isAutoRenew}
           category={sub.category?.name}
           categoryColor={sub.category?.color}
           variants={item}
